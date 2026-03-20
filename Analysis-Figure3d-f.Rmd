@@ -1,0 +1,310 @@
+###############lines 0-200 DEG analysis. Lines 205 onwards analysis for figures
+
+```{r}
+
+library(DESeq2)
+library(dplyr)
+library(ggplot2)
+library(ComplexHeatmap)
+library(circlize)
+library(sporkforlife)
+library(clusterProfiler)
+library(biomaRt)
+
+all_samples.counts <- read.delim("/rds/projects/c/croftap-croftapcarcia/RNA_ATAC_JAN2025/RNAseq/count/pipline/results/featurecounts/all_samples.counts.txt", comment.char="#", row.names = 1)
+
+
+
+
+```
+
+```{r}
+
+all_counts <- all_samples.counts
+
+all_counts <- all_counts %>% dplyr::select(-c(Chr, Start,End, Strand, Length))    #remove non-essential columns
+
+colnames(all_counts) <- c("C3", "X1", "X3", "C1", "C2", "X2")  #rename columns
+
+##########reorder samples
+all_counts <- all_counts[,c(2,6,3,4,5,1)]
+
+#make meta data from count matrix
+meta_data=colnames(all_counts)
+meta_data<-as.data.frame(meta_data)
+
+#add a condition column
+meta_data$condition <- c(rep("X", 3), rep("C", 3))
+colnames(meta_data)<-c("sample", "condition")
+
+#make factors
+meta_data$sample<-as.factor(meta_data$sample)
+meta_data$condition<-as.factor(meta_data$condition)
+```
+
+```{r}
+order <- c("X", "C")  #the order you want your conditions to appear
+
+dds <- DESeqDataSetFromMatrix(countData = all_counts,
+                              colData = meta_data,
+                              design = ~ condition)
+
+keep <- rowSums(counts(dds)) >10
+dds <- dds[keep, ]
+    
+dds$condition <- factor(dds$condition, levels = c("X","C"))
+
+dds <- DESeq(dds, test = "Wald")
+
+res <- results(dds)
+res
+
+res <- results(dds, name="condition_C_vs_X")
+res <- results(dds, contrast=c("condition","C","X"))    
+    
+resultsNames(dds)
+
+resOrdered <- res[order(res$pvalue),]   
+res05 <- results(dds, alpha=0.05)    
+sum(res05$padj < 0.05, na.rm=TRUE)    
+    
+plotMA(res05, ylim=c(-2,2))    
+plotCounts(dds, gene=which.min(res$padj), intgroup="condition")
+
+d <- plotCounts(dds, gene=which.min(res$padj), intgroup="condition", 
+                returnData=TRUE)
+library("ggplot2")
+ggplot(d, aes(x=condition, y=count)) + 
+  geom_point(position=position_jitter(w=0.1,h=0)) + 
+  scale_y_log10(breaks=c(25,100,400))
+
+vsd <- vst(dds)
+head(assay(vsd), 3)
+
+select <- order(rowMeans(counts(dds,normalized=TRUE)),
+                decreasing=TRUE)[1:20]
+df <- as.data.frame(colData(dds)[,c("condition","sample")])
+pheatmap(assay(vsd)[select,], cluster_rows=FALSE, show_rownames=FALSE,
+         cluster_cols=FALSE, annotation_col=df)
+
+sampleDists <- dist(t(assay(vsd)))
+
+sampleDistMatrix <- as.matrix(sampleDists)
+rownames(sampleDistMatrix) <- paste(vsd$condition, vsd$type, sep="-")
+colnames(sampleDistMatrix) <- NULL
+library(RColorBrewer)
+colors <- colorRampPalette( rev(brewer.pal(9, "Blues")) )(255)
+pheatmap(sampleDistMatrix,
+         clustering_distance_rows=sampleDists,
+         clustering_distance_cols=sampleDists,
+         col=colors)
+
+plotPCA(vsd, intgroup=c("condition", "sample"))
+library(DEGreport)
+degs <- degComps(dds, combs = "condition",
+                 contrast = list( c("condition", "X", "C") ))
+
+DEGs <- data.frame(results(dds, contrast=c("condition", "X", "C"), alpha = 0.05))
+
+DEGs$cluster <- "NO"
+DEGs$cluster[DEGs$log2FoldChange > 0.05] <- "UP"
+DEGs$cluster[DEGs$log2FoldChange < -0.05] <- "DOWN"
+
+
+
+result <- process_deseq_PCA(counts = all_counts, 
+                             meta_data = meta_data, 
+                             relevel_condition = order, 
+                             min_gene_count = 200)
+
+dds <- result$dds
+pca_plot <- result$pca_plot
+pca_plot
+
+```
+
+```{r}
+
+
+library(gsfisher)
+annotation_gs <- fetchAnnotation(species="mm", ensembl_version=NULL, ensembl_host=NULL)
+
+
+
+custom_colors <- c("ctrl" = "red", "CAR" = "blue")
+
+#define order of how you want to plot the heatmap
+custom_order <- c("ctrl", "CAR")
+
+
+run_deseq_contrast_heatmap(dds = dds, 
+                           meta_data = meta_data, 
+                           targetvar = "condition", 
+                           p_value_threshold = 0.001, 
+                           log2fc_threshold = 0.25, 
+                           condition_colors = custom_colors,
+                           condition_order = custom_order,
+                           go_analysis = F, 
+                           organism = "mm", 
+                           annotation_gs = annotation_gs)
+
+
+
+results_all_f <- results_all %>% filter(padj < 0.05)
+
+
+index <- match(results_all_f$gene, annotation_gs$ensembl_id)
+results_all_f$gene_name <- annotation_gs$gene_name[index]
+
+write.csv(results_all_f, "/rds/projects/c/croftap-croftapcarcia/RNA_ATAC_JAN2025/RNAseq/analysis/DEGs.csv")
+
+```
+
+    
+results_all_f <- results_all %>% filter(padj < 0.05)
+
+
+index <- match(results_all_f$gene, annotation_gs$ensembl_id)
+results_all_f$gene_name <- annotation_gs$gene_name[index]
+    
+    
+```
+
+```{r}
+
+
+scale_sub_vsd <- scale_sub_vsd %>% as.data.frame()
+
+
+index <- match(rownames(scale_sub_vsd), annotation_gs$ensembl_id)
+rownames(scale_sub_vsd) <- annotation_gs$gene_name[index]
+
+
+scale_sub_vsd <- as.matrix(scale_sub_vsd)
+
+
+
+annotation_col <- data.frame(
+  Group = c("ctrl", "ctrl", "ctrl", "CAR", "CAR", "CAR") # Example groupings
+)
+rownames(annotation_col) <- colnames(data) # Match to column names of the data
+
+
+Heatmap(scale_sub_vsd,
+        name = "Expression",
+        cluster_rows = T,
+        cluster_columns = F,
+        row_title_rot = 0,
+        row_title_gp = gpar(fontsize = 10, fontface = "bold"),
+        row_names_gp = gpar(fontsize = 9),
+        column_names_gp = gpar(fontsize = 10),
+        show_row_dend = T,
+        show_column_dend = T,
+        heatmap_legend_param = list(title = "Expression\nValue"), show_row_names = F, border = T)
+
+
+```
+
+
+############ FIgure 3f
+vsd <- vst(dds, blind = T)
+vsd_mat <- assay(vsd)
+norm_expr_mat<- t(scale(t(vsd_mat)))
+
+ensembl_ids <- rownames(norm_expr_mat)
+
+# Match each Ensembl ID to its gene name
+idx <- match(ensembl_ids, annotation_gs$ensembl_id)
+
+# Replace rownames with gene names (keeping original if no match)
+rownames(norm_expr_mat) <- ifelse(
+  is.na(idx),
+  ensembl_ids,  
+  annotation_gs$gene_name[idx]
+)
+
+##########manually order genes to match ATAC order- repeat this for damage, homeostasis, repair and quiescence genes
+gene_order <- c("Fscn1", "Septin5", "Htr2a", "C1qtnf3",
+                "Tnfrsf9", "Cxcr6", "Fbn2", "Tnn",
+                "Tnc", "Cxcl5", "Saa4")
+
+# Make sure genes exist
+gene_order <- gene_order[gene_order %in% rownames(norm_expr_mat)]
+
+Heatmap(
+  norm_expr_mat[gene_order, c(1,2,3,4,5,6)],
+  name = "Z-score",
+  border = TRUE,
+  show_row_names = TRUE,
+  cluster_rows = FALSE,      # IMPORTANT
+  cluster_columns = FALSE,
+  col = circlize::colorRamp2(c(-2, 0, 2),
+                             c("blue", "white", "red"))
+)
+
+##########inflammation and complement
+Heatmap(norm_expr_mat[c("Htr2a", "Saa4", "Septin5", "Cxcr6", "Fbn2", "Cxcl5", "Tnn", "Fscn1", "Tnfrsf9", "Tnc", "C1qtnf3"),c(1,2,3,4,5,6)], border=T, show_row_names = T, cluster_columns = F,c("blue", "white", "red"))+xlab(NULL)
+
+##############damage
+Heatmap(norm_expr_mat[c("Il1rn", "Il1rl1", "Pcsk5", "Adam12", "Tnfsf11", "Mmp8", "Mmp13", "Col8a2", "Col11a1"),c(1,2,3,4,5,6)], border=T, show_row_names = T, cluster_columns = F,c("blue", "white", "red"))+xlab(NULL)
+
+###############homoeostasis
+Heatmap(norm_expr_mat[c("Akap12", "Plau", "Itga6", "F13a1", "Btc"),c(1,2,3,4,5,6)], border=T, show_row_names = T, cluster_columns = F,c("blue", "white", "red"))+xlab(NULL)
+
+#############repair
+Heatmap(norm_expr_mat[c("Enho", "Pcolce2", "Prg4", "Cacng1", "Lepr", "Enpp6", "Tmigd1", "Mt1", "Mt2", "Megf10", "Cd24a"),c(1,2,3,4,5,6)], border=T, show_row_names = T, cluster_columns = F,c("blue", "white", "red"))+xlab(NULL)
+
+##############T cell association
+Heatmap(norm_expr_mat[c("H2-DMa", "Slfnlnc", "Ifi208", "Cxcl9", "H2-Ab1", "H2-Eb1", "H2-Aa"),c(1,2,3,4,5,6)], border=T, show_row_names = T, cluster_columns = F,c("blue", "white", "red"))+xlab(NULL)
+
+###############quiescence
+Heatmap(norm_expr_mat[c("Creb5", "Foxo1", "Sox5"),c(1,2,3,4,5,6)], border=T, show_row_names = T, cluster_columns = F,c("blue", "white", "red"))
+
+
+
+
+```
+
+
+\`\`\`{r}
+
+#########pathway analysis - figure 3d&e
+
+####using df_merge genes library(AnnotationDbi) library(org.Mm.eg.db)
+
+DEGs <- data.frame(results(dds, contrast=c("condition", "X", "C"), alpha = 0.05))
+
+DEGs$cluster <- "NO"
+DEGs$cluster[DEGs$log2FoldChange > 0.05] <- "UP"
+DEGs$cluster[DEGs$log2FoldChange < -0.05] <- "DOWN"
+
+library(biomaRt)
+library(gsfisher)
+
+annotation_gs <- fetchAnnotation(species="mm", ensembl_version=NULL, ensembl_host=NULL)
+
+ensembl <- useMart("ensembl", dataset = "mmusculus_gene_ensembl")
+gene_ids <- rownames(DEGs)
+gene_map <- getBM(
+  attributes = c("ensembl_gene_id", "mgi_symbol"),
+  filters = "ensembl_gene_id",
+  values = gene_ids,
+  mart = ensembl
+)
+
+DEGs$ensembl_gene_id <- rownames(DEGs)
+df_merged <- merge(gene_map, DEGs, by = "ensembl_gene_id")
+
+df_mergedres \<- subset(df_merged, padj \< 0.05 & abs(log2FoldChange) \> 1) df_mergedX \<- subset(df_mergedres, padj \< 0.05 & cluster == "UP") df_mergedC \<- subset(df_mergedres, padj \< 0.05 & cluster == "DOWN")
+
+library(clusterProfiler)
+
+\`\` egoX \<- enrichGO(gene = df_mergedX\$gene_id, OrgDb = org.Mm.eg.db, keyType = "ENTREZID", ont = "BP", pAdjustMethod = "BH", qvalueCutoff = 0.2, readable = TRUE)
+
+#################Figure 3d
+dotplot(egoX, showCategory = c("secretion by tissue", "acute inflammatory response", "humoral immune response", "complement activation", "regulation of complement activation", "complement activation, classical pathway", "learning or memory", "memory", "production of molecular mediator of immune response", "cell aggregation", "acute inflammatory response", "phagocytosis, recognition")) + ggtitle("GO Terms - non-treated")
+
+egoC \<- enrichGO(gene = df_mergedX\$gene_id, OrgDb = org.Mm.eg.db, keyType = "ENTREZID", ont = "BP", pAdjustMethod = "BH", qvalueCutoff = 0.2, readable = TRUE)
+
+###################Figure 3e
+dotplot(egoC, showCategory = c("homeostasis of number of cells", "myeloid cell homeostasis", "B cell mediated immunity", "response to type II interferon", "homotypic cell-cell adhesion", "B cell homeostasis", "response to vitamin", "antigen processing and presentation of exogenous antigen")) + ggtitle("GO Terms - non-treated")
