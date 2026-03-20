@@ -1,4 +1,5 @@
-
+#########lines 0-159 sample processing and DEG analysis
+#########code for figures line 160 onwards
 
 
 ```{r}
@@ -158,6 +159,9 @@ pca_plot
 ```
 ```{r}
 
+
+########################Extended Data Figure 4g
+
 library(gsfisher)
 annotation_gs <- fetchAnnotation(species="mm", ensembl_version=NULL, ensembl_host=NULL)
 
@@ -218,7 +222,7 @@ FilteredGeneID <- unique(DEGs$gene)
             maxl = 50, title = "GO Term Enrichment", rotate_sample_labels = TRUE) + Font(x.text = 12, y.text = 12) + ylab(NULL) +xlab(NULL)
 
 
-###########heatmaps
+###########heatmaps in Figure 1 and Extended Data Figure 4h
 
 Heatmap(scale_sub_vsd, border=T, show_row_names = F)
 
@@ -231,11 +235,13 @@ normalized_counts <- normalized_counts[]
 vsd <- vst(dds, blind = TRUE)
 vsd_mat <- assay(vsd)
 norm_expr_mat<- t(scale(t(vsd_mat)))
-#pathology
+
+################Figure 1j
+
 Heatmap(norm_expr_mat[c("Cxcl5", "Tnfsf11", "Ccl20", "Il1r1", "Il1rl1", "Il17rc", "Il17ra", "Il6st", "Il11", "Mmp9", "Mmp23", "Mmp17", "Mmp2", "Mmp15", "Mmp13", "Mmp12", "Mmp10", "Mmp8", "Mmp11", "Mmp19", "Mmp28", "Mmp14", "Mmp25", "Creb5", "Cd34", "Il2", "Il1r2", "Il1rl2", "Il19", "Ildr2", "Il7", "Il11ra1"),c(4,5,6,1,2,3)], border=T, show_row_names = T, cluster_columns = F,c("blue", "white", "red"))
 
 
-#normal
+#################Extended Data Figure 4h 
 Heatmap(norm_expr_mat[c("Hbegf", "Clic5", "Tspan15", "Prg4", "Has1", "Thy1", "Cdh11", "Cd55", "Cd248", "Vcam1", "Cd200", "Pdgfra", "Pdgfrb", "Megf10", "F13a1", "Csf1", "Cthrc1", "Postn"),c(4,5,6,1,2,3)], border=T, show_row_names = T, cluster_columns = F,c("blue", "white", "red"))
 
 
