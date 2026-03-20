@@ -1,3 +1,5 @@
+###############lines 0-325 samples processing and integration. lines 326 onwards analysis for figures
+
 library(Seurat)
 library(dplyr)
 library(ggplot2)
@@ -41,7 +43,8 @@ library(ggthemes)
 library(tvthemes)
 library(pheatmap)
 
-rm(CIA_r1p)
+##########resting
+
 CIA_r1p <- Read10X(data.dir = "/rds/projects/c/croftap-ktr-cia-sc-01/CIA_CD45_pos/Con2_CD45pos/outs/filtered_feature_bc_matrix")
 CIA_r1p <- CreateSeuratObject(counts = CIA_r1p, min.cells=3, min.features=100, project="CIA_r1p")
 CIA_r1p <- RenameCells(CIA_r1p, add.cell.id = "CIA_r1p")
@@ -50,7 +53,6 @@ CIA_r1p$CD45 <- "pos"
 CIA_r1p$State <- "Resting"
 head(CIA_r1p)
 
-rm(CIA_r2p)
 CIA_r2p <- Read10X(data.dir = "/rds/projects/c/croftap-ktr-cia-sc-01/CIA_CD45_pos/Con3_CD45pos/outs/filtered_feature_bc_matrix")
 CIA_r2p <- CreateSeuratObject(counts = CIA_r2p, min.cells=3, min.features=100, project="CIA_r2p")
 CIA_r2p <- RenameCells(CIA_r2p, add.cell.id = "CIA_r2p")
@@ -59,7 +61,6 @@ CIA_r2p$CD45 <- "pos"
 CIA_r2p$State <- "Resting"
 head(CIA_r2p)
 
-rm(CIA_r3p)
 CIA_r3p <- Read10X(data.dir = "/rds/projects/c/croftap-ktr-cia-sc-01/CIA_CD45_pos/Con1_CD45pos/outs/filtered_feature_bc_matrix")
 CIA_r3p <- CreateSeuratObject(counts = CIA_r3p, min.cells=3, min.features=100, project="CIA_r3p")
 CIA_r3p <- RenameCells(CIA_r3p, add.cell.id = "CIA_r3p")
@@ -68,7 +69,7 @@ CIA_r3p$CD45 <- "pos"
 CIA_r3p$State <- "Resting"
 head(CIA_r3p)
 
-rm(CIA_i1p)
+#################non-treated
 CIA_i1p <- Read10X(data.dir = "/rds/projects/c/croftap-sgcar/X204SC24074958-Z01-F001/count/CON1POS/outs/per_sample_outs/CON1POS/count/sample_filtered_feature_bc_matrix")
 CIA_i1p <- CreateSeuratObject(counts = CIA_i1p, min.cells=3, min.features=100, project="CIA_i1p")
 CIA_i1p <- RenameCells(CIA_i1p, add.cell.id = "CIA_i1p")
@@ -77,7 +78,6 @@ CIA_i1p$CD45 <- "pos"
 CIA_i1p$State <- "Inflamed"
 head(CIA_i1p)
 
-rm(CIA_i2p)
 CIA_i2p <- Read10X(data.dir = "/rds/projects/c/croftap-sgcar/X204SC24074958-Z01-F001/count/CON2POS/outs/per_sample_outs/CON2POS/count/sample_filtered_feature_bc_matrix")
 CIA_i2p <- CreateSeuratObject(counts = CIA_i2p, min.cells=3, min.features=100, project="CIA_i2p")
 CIA_i2p <- RenameCells(CIA_i2p, add.cell.id = "CIA_i2p")
@@ -86,7 +86,6 @@ CIA_i2p$CD45 <- "pos"
 CIA_i2p$State <- "Inflamed"
 head(CIA_i2p)
 
-rm(CIA_i3p)
 CIA_i3p <- Read10X(data.dir = "/rds/projects/c/croftap-sgcar/X204SC24074958-Z01-F001/count/CON3POS/outs/per_sample_outs/CON3POS/count/sample_filtered_feature_bc_matrix")
 CIA_i3p <- CreateSeuratObject(counts = CIA_i3p, min.cells=3, min.features=100, project="CIA_i3p")
 CIA_i3p <- RenameCells(CIA_i3p, add.cell.id = "CIA_i3p")
@@ -95,7 +94,7 @@ CIA_i3p$CD45 <- "pos"
 CIA_i3p$State <- "Inflamed"
 head(CIA_i3p)
 
-rm(CIA_c1p)
+############CAR-T treated
 CIA_c1p <- Read10X(data.dir = "/rds/projects/c/croftap-sgcar/X204SC24074958-Z01-F001/count/CAR1POS/outs/per_sample_outs/CAR1POS/count/sample_filtered_feature_bc_matrix")
 CIA_c1p <- CreateSeuratObject(counts = CIA_c1p, min.cells=3, min.features=100, project="CIA_c1p")
 CIA_c1p <- RenameCells(CIA_c1p, add.cell.id = "CIA_c1p")
@@ -104,7 +103,6 @@ CIA_c1p$CD45 <- "pos"
 CIA_c1p$State <- "CAR"
 head(CIA_c1p)
 
-rm(CIA_c2p)
 CIA_c2p <- Read10X(data.dir = "/rds/projects/c/croftap-sgcar/X204SC24074958-Z01-F001/count/CAR2POS/outs/per_sample_outs/CAR2POS/count/sample_filtered_feature_bc_matrix")
 CIA_c2p <- CreateSeuratObject(counts = CIA_c2p, min.cells=3, min.features=100, project="CIA_c2p")
 CIA_c2p <- RenameCells(CIA_c2p, add.cell.id = "CIA_c2p")
@@ -113,7 +111,6 @@ CIA_c2p$CD45 <- "pos"
 CIA_c2p$State <- "CAR"
 head(CIA_c2p)
 
-rm(CIA_c3p)
 CIA_c3p <- Read10X(data.dir = "/rds/projects/c/croftap-sgcar/X204SC24074958-Z01-F001/count/CAR3POS/outs/per_sample_outs/CAR3POS/count/sample_filtered_feature_bc_matrix")
 CIA_c3p <- CreateSeuratObject(counts = CIA_c3p, min.cells=3, min.features=100, project="CIA_c3p")
 CIA_c3p <- RenameCells(CIA_c3p, add.cell.id = "CIA_c3p")
@@ -361,7 +358,7 @@ Idents(all.H)<-"clusters"
 ####remove cycling cells####
 all.H.res<-subset(integrated1, idents=c("Fibroblasts", "Osteoblast", "Mural", "Vascular", "Macrophages", "Mono_Macrophages", "T_Lymphocytes", "B_Lymphocytes", "Mast_Cells"))
 
-########extended data figure 8a
+########extended data figure 9a
 DimPlot(all.H.res, reduction = "HarmonyUMAP", label = F, pt.size = 0.1, repel = F, label.box = T)+ NoAxes()#+scale_color_avatar(palette = "FireNation")
 
 
@@ -371,13 +368,13 @@ write.csv(FindAllMarkers_all, file = "Supplementary Table 15.csv")
 
 allcell.genes<-c("Col1a1", "Pdpn", "Cd14", "Il1b", "Cd68", "Apoe", "Runx2", "Bglap", "Pecam1", "Cd36", "Notch3", "Rgs4", "Cd3g", "Icos", "Cd19", "Cd79a", "Mcpt14", "Cma1")
 
-########extended data figure 8b
+########extended data figure 9b
 #plot dotplot
 dotplot <- DotPlot(all.H.res, features = allcell.genes, dot.scale = 6)+ theme(axis.text.x = element_text(angle = 90, vjust = 1, hjust=1)) +ylab(NULL) +xlab(NULL)+ scale_color_gradientn(colours = magma(20))+ FontSize(x.text = 14, y.text = 14) 
 dotplot
 
 
-########extended data figure 8c
+########extended data figure 9c
 test <- sc_utils(all.H.res)
 prop.test <- permutation_test(test, cluster_identity = "clusters", sample_1="CAR", sample_2="Inflamed", sample_identity="State", n_permutations=10000)
 permutation_plot(prop.test, FDR_threshold = 0.01, log2FD_threshold = 0.58, order_clusters = T)+ FontSize(x.text = 12, y.text = 12, x.title = 12, y.title = 12)+xlab(NULL)+NoLegend()
@@ -396,7 +393,7 @@ Restingcd45<-subset(Intergated2, idents="Resting")
 #########pathway analysis for clusters##########change Ident and add this to seurat_obj below
 Idents(mac1)<-"clusters"
 
-########extended data figure 8d
+########extended data figure 9d
 #########pathway analysis for tissue state##########change Ident and add this to seurat_obj below
 Idents(mac1)<-"State"
 
@@ -565,7 +562,7 @@ DimPlot(macs, reduction = "umap", label = F, pt.size = 0.1, repel = T, label.box
 DimPlot(mac1, reduction = "umap", label = F, pt.size = 0.1, repel = T, label.box = T, split.by = "State") + NoAxes()+scale_color_simpsons(n, type = "discrete")
 
 
-######extended data figure 8f
+######extended data figure 9f
 #####cd14 expression
 VlnPlot(mac1,features = "Cd14", cols = c("#FED439FF", "#8A9197FF", "#D2AF81FF",   "#F05C3BFF", "#D5E4A2FF", "#197EC0FF", "brown"), pt.size = 0)+NoLegend()
 
@@ -611,7 +608,7 @@ Aqua.genes<-c("Aqp1", "Fxyd2", "Tpp3", "Cd9", "Lyve1", "Anxa1", "Cyb5r3", "Ifi27
 immreg.genes<-c("Rps4y1", "Timd4", "Cfd", "Cd99", "Mtrnr2l8", "Rbp4", "Hpgds", "Folr2", "C1qc", "Aldh1a1", "Tgfb1", "Calm2", "Ppdpf", "Lilrb5", "Fxyd5", "S100a4", "Ctsa", "Serpinf1", "Cpvl", "Grn", "Tspan15", "Lipa", "Acp5", "S100a10", "Lgmn", "Tspo", "Vsig4", "Pebp1", "Dstn", "Apoe")
 
 
-#######extended data figure 8e
+#######extended data figure 9e
 mac1 <- AddModuleScore(
   object = mac1,
   features = list(cx3cr1.genes),
@@ -659,7 +656,7 @@ Idents(mac1)<-"State"
 VlnPlot(mac1, features = "immreg1")
 
 
-####boxplot figure 5e
+############boxplot figure 5e
 expr <- FetchData(mac1, vars = "immreg1")
 expr$State <- mac1$State   # add metadata column
 colnames(expr)[1] <- "expression"
@@ -677,7 +674,7 @@ my_comparisons <- list(
 )
 
 ggplot(expr, aes(x = State, y = expression, fill = State)) +
-  geom_boxplot(outlier.size = 0.5) +
+  geom_boxplot(outlier.size = 0.5) 
   theme_classic() +
   ylab("Immreg1 expression") +
   xlab("Treatment") +
@@ -693,7 +690,7 @@ ggplot(expr, aes(x = State, y = expression, fill = State)) +
   ) +
   NoLegend()
 
-######gene score across tissue state######### 
+######gene score across tissue state#########  
 immreg.df <- FetchData(mac1, vars = c("immreg1", "State"))
 colnames(immreg.df)[1] <- "immreg"
 
@@ -735,7 +732,7 @@ pheatmap(imm.mat_h,
              color = colorRampPalette(c("#999999", "#E69F00", "red"))(100))
 
 
-########figure 5d
+########figure 5e
 ##########macrophage pseudotime#############
 Idents(mac1)<-"State"
 Restingmac<-subset(mac1, idents="Resting")
