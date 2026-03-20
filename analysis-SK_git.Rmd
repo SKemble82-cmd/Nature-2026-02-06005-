@@ -1,0 +1,742 @@
+
+
+```{r}
+
+
+library(DESeq2)
+library(dplyr)
+library(ggplot2)
+library(ComplexHeatmap)
+library(circlize)
+#devtools::install_github("chrismahony/sprokforlife")
+library(sporkforlife)
+
+
+all_counts <- read.delim("/rds/projects/c/croftap-croftapcarcia/RNA_ATAC_JAN2025/ATACseq/count/peaks/ALL_PEAKS_noblacklist_noblacklist.counts", comment.char="#", row.names=1)
+
+rownames(all_counts) <- paste(all_counts$Chr, all_counts$Start, all_counts$End, sep="-")
+
+all_counts <- all_counts %>% dplyr::select(-c(Chr, Start,End, Strand, Length))    #remove non-essential columns
+
+colnames(all_counts) <- c("A4", "A1", "A2", "A3", "A5", "A6")  #rename columns
+all_counts <- all_counts[,c(2,3,4,1,5,6)]
+
+
+#make meta data from count matrix
+meta_data=colnames(all_counts)
+meta_data<-as.data.frame(meta_data)
+
+#add a condition column
+meta_data$condition <- c(rep("Ctrl", 3), rep("CAR", 3))
+colnames(meta_data)<-c("sample", "condition")
+
+#make factors
+meta_data$sample<-as.factor(meta_data$sample)
+meta_data$condition<-as.factor(meta_data$condition)
+meta_data
+
+
+
+order <- c("Ctrl", "CAR")  #the order you want your conditions to appear
+
+result <- process_deseq_PCA(counts = all_counts, 
+                             meta_data = meta_data, 
+                             relevel_condition = order, 
+                             min_gene_count = 200)
+
+dds <- result$dds
+pca_plot <- result$pca_plot
+
+pca_plot
+
+rld_v3 <- rlog(dds, blind = TRUE)
+    pcaData <- plotPCA(rld_v3, intgroup = c("sample"), returnData = TRUE)
+    percentVar <- round(100 * attr(pcaData, "percentVar"))
+    p <- ggplot(pcaData, aes(PC1, PC2, color = sample)) + 
+        geom_point(size = 3) + xlab(paste0("PC1: ", percentVar[1], 
+        "% variance")) + ylab(paste0("PC2: ", percentVar[2], 
+        "% variance")) + coord_fixed()
+
+p
+```
+
+
+
+
+```{r}
+
+peak_ids <- rownames(result$dds)
+
+library(GenomicRanges)
+
+# Split peak IDs
+peak_split <- do.call(rbind, strsplit(peak_ids, "-"))
+colnames(peak_split) <- c("chr", "start", "end")
+
+gr <- GRanges(
+  seqnames = peak_split[, "chr"],
+  ranges   = IRanges(
+    start = as.numeric(peak_split[, "start"]),
+    end   = as.numeric(peak_split[, "end"])
+  )
+)
+names(gr) <- peak_ids
+
+library(ChIPseeker)
+library(TxDb.Mmusculus.UCSC.mm10.knownGene)
+library(org.Mm.eg.db)
+
+txdb <- TxDb.Mmusculus.UCSC.mm10.knownGene
+
+peak_annot <- annotatePeak(
+  gr,
+  TxDb = txdb,
+  annoDb = "org.Mm.eg.db"
+)
+
+peak_annot_df <- as.data.frame(peak_annot)
+
+peak_annot_df$peakID <- paste0(
+  peak_annot_df$seqnames, "-",
+  peak_annot_df$start, "-",
+  peak_annot_df$end
+)
+
+peak2gene <- data.frame(
+  peakID = peak_annot_df$peakID,
+  SYMBOL = peak_annot_df$SYMBOL,
+  distanceToTSS = peak_annot_df$distanceToTSS,
+  annotation = peak_annot_df$annotation,
+  stringsAsFactors = FALSE
+)
+
+
+
+#### heatmaps figure 3f
+
+
+genes_of_interest <- c("Col11a1", "Mmp13", "Tnfsf11", "Il1rl1", "Mmp8", "Pcsk5", "Il1rn", "Adam12", "Col8a2")
+
+selected_peaks <- peak2gene$peakID[peak2gene$SYMBOL %in% genes_of_interest]
+length(selected_peaks)
+
+vsd <- vst(dds, blind = FALSE)
+mat <- assay(vsd)
+
+mat_sel <- mat[selected_peaks, , drop = FALSE]
+
+# Row z-score
+mat_z <- t(scale(t(mat_sel)))
+
+sampleAnnot <- as.data.frame(colData(dds))
+
+sample_order <- c("A1", "A2", "A3", "A4", "A5", "A6")
+
+# Reorder columns in the matrix
+mat_z <- mat_z[, sample_order, drop = FALSE]
+
+# Reorder sample annotations to match
+sampleAnnot <- sampleAnnot[sample_order, , drop = FALSE]
+
+library(dplyr)
+
+# Combine mat_sel with gene symbols
+peak_gene_map <- peak2gene %>%
+  dplyr::filter(peakID %in% rownames(mat_sel)) %>%
+  dplyr::select(peakID, SYMBOL)
+
+#peak_gene_map <- peak2gene %>%
+ # filter(peakID %in% rownames(mat_sel)) %>%
+  #select(peakID, SYMBOL)
+
+# Subset mat_sel to only peaks of interest
+mat_sel <- mat_sel[peak_gene_map$peakID, ]
+
+# Aggregate by gene: take rowMeans
+gene_mat <- t(sapply(unique(peak_gene_map$SYMBOL), function(gene) {
+  rows <- which(peak_gene_map$SYMBOL == gene)
+  if(length(rows) > 1) {
+    colMeans(mat_sel[rows, , drop = FALSE])
+  } else {
+    mat_sel[rows, ]
+  }
+}))
+
+rownames(gene_mat) <- unique(peak_gene_map$SYMBOL)
+
+gene_mat_z <- t(scale(t(gene_mat)))
+
+sample_order <- c("A1", "A2", "A3", "A4", "A5", "A6")
+gene_mat_z <- gene_mat_z[, sample_order]
+sampleAnnot <- sampleAnnot[sample_order, , drop = FALSE]
+
+gene_order <- c("Col11a1", "Mmp13", "Tnfsf11", "Il1rl1", "Pcsk5", "Il1rn", "Adam12", "Col8a2")
+
+gene_mat_z <- gene_mat_z[gene_order, , drop = FALSE]
+
+
+# Cap values at -2 and 2
+gene_mat_z[gene_mat_z > 1.5] <- 1.5
+gene_mat_z[gene_mat_z < -1.5] <- -1.5
+
+library(RColorBrewer)
+
+col_fun <- colorRampPalette(c("blue", "white", "red"))(15)
+
+library(pheatmap)
+pheatmap(
+  gene_mat_z,
+  annotation_col = sampleAnnot,
+  cluster_rows = F,   # disable row clustering to respect order
+  cluster_cols = FALSE,
+  show_rownames = TRUE,
+  show_colnames = TRUE,
+  fontsize_row = 10,
+  fontsize_col = 10,
+  border_color = NA,
+  color = col_fun
+)
+
+library(ComplexHeatmap)
+ha <- HeatmapAnnotation(df = sampleAnnot, which = "column")
+
+
+
+
+
+
+genes_of_interest <- c("Akap12", "Btc", "Itga6", "F13a1", "Plau")
+
+
+selected_peaks <- peak2gene$peakID[peak2gene$SYMBOL %in% genes_of_interest]
+length(selected_peaks)
+
+vsd <- vst(dds, blind = FALSE)
+mat <- assay(vsd)
+
+mat_sel <- mat[selected_peaks, , drop = FALSE]
+
+# Row z-score
+mat_z <- t(scale(t(mat_sel)))
+
+sampleAnnot <- as.data.frame(colData(dds))
+
+sample_order <- c("A1", "A2", "A3", "A4", "A5", "A6")
+
+# Reorder columns in the matrix
+mat_z <- mat_z[, sample_order, drop = FALSE]
+
+# Reorder sample annotations to match
+sampleAnnot <- sampleAnnot[sample_order, , drop = FALSE]
+
+library(dplyr)
+
+# Combine mat_sel with gene symbols
+peak_gene_map <- peak2gene %>%
+  dplyr::filter(peakID %in% rownames(mat_sel)) %>%
+  dplyr::select(peakID, SYMBOL)
+
+#peak_gene_map <- peak2gene %>%
+ # filter(peakID %in% rownames(mat_sel)) %>%
+  #select(peakID, SYMBOL)
+
+# Subset mat_sel to only peaks of interest
+mat_sel <- mat_sel[peak_gene_map$peakID, ]
+
+# Aggregate by gene: take rowMeans
+gene_mat <- t(sapply(unique(peak_gene_map$SYMBOL), function(gene) {
+  rows <- which(peak_gene_map$SYMBOL == gene)
+  if(length(rows) > 1) {
+    colMeans(mat_sel[rows, , drop = FALSE])
+  } else {
+    mat_sel[rows, ]
+  }
+}))
+
+rownames(gene_mat) <- unique(peak_gene_map$SYMBOL)
+
+gene_mat_z <- t(scale(t(gene_mat)))
+
+sample_order <- c("A1", "A2", "A3", "A4", "A5", "A6")
+gene_mat_z <- gene_mat_z[, sample_order]
+sampleAnnot <- sampleAnnot[sample_order, , drop = FALSE]
+
+gene_order <- c("Akap12", "Btc", "Itga6", "F13a1", "Plau")
+
+
+gene_mat_z <- gene_mat_z[gene_order, , drop = FALSE]
+
+
+# Cap values at -2 and 2
+gene_mat_z[gene_mat_z > 1.5] <- 1.5
+gene_mat_z[gene_mat_z < -1.5] <- -1.5
+
+library(RColorBrewer)
+
+col_fun <- colorRampPalette(c("blue", "white", "red"))(15)
+
+library(pheatmap)
+pheatmap(
+  gene_mat_z,
+  annotation_col = sampleAnnot,
+  cluster_rows = F,   # disable row clustering to respect order
+  cluster_cols = FALSE,
+  show_rownames = TRUE,
+  show_colnames = TRUE,
+  fontsize_row = 10,
+  fontsize_col = 10,
+  border_color = NA,
+  color = col_fun
+)
+
+library(ComplexHeatmap)
+ha <- HeatmapAnnotation(df = sampleAnnot, which = "column")
+
+
+
+
+
+
+genes_of_interest <- c("Tmigd1", "Cd24a", "Pcolce2", "Cacng1", "Enho", "Megf10", "Lepr", "Enpp6", "Mt1", "Mt2", "Prg4")
+
+selected_peaks <- peak2gene$peakID[peak2gene$SYMBOL %in% genes_of_interest]
+length(selected_peaks)
+
+vsd <- vst(dds, blind = FALSE)
+mat <- assay(vsd)
+
+mat_sel <- mat[selected_peaks, , drop = FALSE]
+
+# Row z-score
+mat_z <- t(scale(t(mat_sel)))
+
+sampleAnnot <- as.data.frame(colData(dds))
+
+sample_order <- c("A1", "A2", "A3", "A4", "A5", "A6")
+
+# Reorder columns in the matrix
+mat_z <- mat_z[, sample_order, drop = FALSE]
+
+# Reorder sample annotations to match
+sampleAnnot <- sampleAnnot[sample_order, , drop = FALSE]
+
+library(dplyr)
+
+# Combine mat_sel with gene symbols
+peak_gene_map <- peak2gene %>%
+  dplyr::filter(peakID %in% rownames(mat_sel)) %>%
+  dplyr::select(peakID, SYMBOL)
+
+#peak_gene_map <- peak2gene %>%
+ # filter(peakID %in% rownames(mat_sel)) %>%
+  #select(peakID, SYMBOL)
+
+# Subset mat_sel to only peaks of interest
+mat_sel <- mat_sel[peak_gene_map$peakID, ]
+
+# Aggregate by gene: take rowMeans
+gene_mat <- t(sapply(unique(peak_gene_map$SYMBOL), function(gene) {
+  rows <- which(peak_gene_map$SYMBOL == gene)
+  if(length(rows) > 1) {
+    colMeans(mat_sel[rows, , drop = FALSE])
+  } else {
+    mat_sel[rows, ]
+  }
+}))
+
+rownames(gene_mat) <- unique(peak_gene_map$SYMBOL)
+
+gene_mat_z <- t(scale(t(gene_mat)))
+
+sample_order <- c("A1", "A2", "A3", "A4", "A5", "A6")
+gene_mat_z <- gene_mat_z[, sample_order]
+sampleAnnot <- sampleAnnot[sample_order, , drop = FALSE]
+
+gene_order <- c("Tmigd1", "Pcolce2", "Cacng1", "Enho", "Megf10", "Lepr", "Enpp6", "Mt1", "Mt2", "Prg4")
+
+gene_mat_z <- gene_mat_z[gene_order, , drop = FALSE]
+
+
+# Cap values at -2 and 2
+gene_mat_z[gene_mat_z > 1.5] <- 1.5
+gene_mat_z[gene_mat_z < -1.5] <- -1.5
+
+library(RColorBrewer)
+
+col_fun <- colorRampPalette(c("blue", "white", "red"))(15)
+
+library(pheatmap)
+pheatmap(
+  gene_mat_z,
+  annotation_col = sampleAnnot,
+  cluster_rows = F,   # disable row clustering to respect order
+  cluster_cols = FALSE,
+  show_rownames = TRUE,
+  show_colnames = TRUE,
+  fontsize_row = 10,
+  fontsize_col = 10,
+  border_color = NA,
+  color = col_fun
+)
+
+library(ComplexHeatmap)
+ha <- HeatmapAnnotation(df = sampleAnnot, which = "column")
+
+
+genes_of_interest <- c("Foxo1", "Creb5", "Sox5")
+
+
+selected_peaks <- peak2gene$peakID[peak2gene$SYMBOL %in% genes_of_interest]
+length(selected_peaks)
+
+vsd <- vst(dds, blind = FALSE)
+mat <- assay(vsd)
+
+mat_sel <- mat[selected_peaks, , drop = FALSE]
+
+# Row z-score
+mat_z <- t(scale(t(mat_sel)))
+
+sampleAnnot <- as.data.frame(colData(dds))
+
+sample_order <- c("A1", "A2", "A3", "A4", "A5", "A6")
+
+# Reorder columns in the matrix
+mat_z <- mat_z[, sample_order, drop = FALSE]
+
+# Reorder sample annotations to match
+sampleAnnot <- sampleAnnot[sample_order, , drop = FALSE]
+
+library(dplyr)
+
+# Combine mat_sel with gene symbols
+peak_gene_map <- peak2gene %>%
+  dplyr::filter(peakID %in% rownames(mat_sel)) %>%
+  dplyr::select(peakID, SYMBOL)
+
+#peak_gene_map <- peak2gene %>%
+ # filter(peakID %in% rownames(mat_sel)) %>%
+  #select(peakID, SYMBOL)
+
+# Subset mat_sel to only peaks of interest
+mat_sel <- mat_sel[peak_gene_map$peakID, ]
+
+# Aggregate by gene: take rowMeans
+gene_mat <- t(sapply(unique(peak_gene_map$SYMBOL), function(gene) {
+  rows <- which(peak_gene_map$SYMBOL == gene)
+  if(length(rows) > 1) {
+    colMeans(mat_sel[rows, , drop = FALSE])
+  } else {
+    mat_sel[rows, ]
+  }
+}))
+
+rownames(gene_mat) <- unique(peak_gene_map$SYMBOL)
+
+gene_mat_z <- t(scale(t(gene_mat)))
+
+sample_order <- c("A1", "A2", "A3", "A4", "A5", "A6")
+gene_mat_z <- gene_mat_z[, sample_order]
+sampleAnnot <- sampleAnnot[sample_order, , drop = FALSE]
+
+gene_order <- c("Foxo1", "Creb5", "Sox5")
+
+
+gene_mat_z <- gene_mat_z[gene_order, , drop = FALSE]
+
+
+# Cap values at -2 and 2
+gene_mat_z[gene_mat_z > 1.5] <- 1.5
+gene_mat_z[gene_mat_z < -1.5] <- -1.5
+
+library(RColorBrewer)
+
+col_fun <- colorRampPalette(c("blue", "white", "red"))(15)
+
+library(pheatmap)
+pheatmap(
+  gene_mat_z,
+  annotation_col = sampleAnnot,
+  cluster_rows = F,   # disable row clustering to respect order
+  cluster_cols = FALSE,
+  show_rownames = TRUE,
+  show_colnames = TRUE,
+  fontsize_row = 10,
+  fontsize_col = 10,
+  border_color = NA,
+  color = col_fun
+)
+
+library(ComplexHeatmap)
+ha <- HeatmapAnnotation(df = sampleAnnot, which = "column")
+
+
+
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+```{r}
+
+############ extended figure 6a&b
+
+library(org.Mm.eg.db)
+devtools::install_github("wjawaid/enrichR")
+library(enrichR)
+library(clusterProfiler)
+
+# contrast = c("condition", "Ctrl", "CAR") means log2FoldChange > 0 => Ctrl > CAR
+res <- results(dds, contrast = c("condition", "Ctrl", "CAR"))
+res_df <- as.data.frame(res)
+res_df$peakID <- rownames(res_df)
+
+# ---- 3. Filter significant peaks (adjust thresholds as desired) ----
+alpha <- 0.05
+sig <- res_df[!is.na(res_df$padj) & res_df$padj < alpha, ]
+
+# split: positive = Ctrl-up, negative = CAR-up
+ctrl_up_ids <- sig$peakID[sig$log2FoldChange > 0]
+car_up_ids  <- sig$peakID[sig$log2FoldChange < 0]
+
+cat("Significant peaks (padj <", alpha, "):", nrow(sig), "\n")
+cat("Ctrl-up peaks (log2FC > 0):", length(ctrl_up_ids), "\n")
+cat("CAR-up peaks (log2FC < 0):", length(car_up_ids), "\n")
+
+# ---- 4. Map peaks -> genes using peak2gene ----
+ctrl_p2g <- peak2gene %>% filter(peakID %in% ctrl_up_ids)
+car_p2g  <- peak2gene %>% filter(peakID %in% car_up_ids)
+
+ctrl_genes <- unique(ctrl_p2g$SYMBOL)
+ctrl_genes <- ctrl_genes[!is.na(ctrl_genes) & ctrl_genes != ""]
+
+car_genes <- unique(car_p2g$SYMBOL)
+car_genes <- car_genes[!is.na(car_genes) & car_genes != ""]
+
+# Background = all genes assignable from peaks
+bg_genes <- unique(peak2gene$SYMBOL)
+bg_genes <- bg_genes[!is.na(bg_genes) & bg_genes != ""]
+
+cat("Ctrl genes:", length(ctrl_genes), "CAR genes:", length(car_genes),
+    "Background genes:", length(bg_genes), "\n")
+
+# ---- 5. Convert SYMBOL -> ENTREZID ----
+library(clusterProfiler)
+ctrl_entrez <- bitr(ctrl_genes, fromType = "SYMBOL", toType = "ENTREZID", OrgDb = org.Mm.eg.db)
+car_entrez  <- bitr(car_genes,  fromType = "SYMBOL", toType = "ENTREZID", OrgDb = org.Mm.eg.db)
+bg_entrez   <- bitr(bg_genes,   fromType = "SYMBOL", toType = "ENTREZID", OrgDb = org.Mm.eg.db)
+
+cat("Mapped Ctrl genes -> Entrez:", nrow(ctrl_entrez), "of", length(ctrl_genes), "\n")
+cat("Mapped CAR genes  -> Entrez:", nrow(car_entrez),  "of", length(car_genes),  "\n")
+cat("Mapped background -> Entrez:", nrow(bg_entrez),  "of", length(bg_genes),  "\n")
+
+# ---- 6. Run GO enrichment (Biological Process) for both sets ----
+
+dbs <- c("GO_Molecular_Function_2023", "GO_Cellular_Component_2023", 
+     "GO_Biological_Process_2023")
+
+enriched_ctrl <- enrichr(ctrl_genes, dbs)
+
+enriched_car <- enrichr(car_genes, dbs)
+
+
+
+
+plotEnrich(enriched_ctrl$GO_Biological_Process_2023,y = "Count", orderBy = "P.value")
+
+plotEnrich(enriched_car$GO_Biological_Process_2023,y = "Count", orderBy = "P.value")
+
+
+
+
+
+ego_ctrl <- NULL
+ego_car  <- NULL
+
+if (nrow(ctrl_entrez) > 0) {
+  ego_ctrl <- enrichGO(
+    gene          = ctrl_entrez$ENTREZID,
+  universe      = bg_entrez$ENTREZID,
+    OrgDb         = org.Mm.eg.db,
+    keyType       = "ENTREZID",
+    ont = "BP",
+    pvalueCutoff  = 0.25,
+    readable      = TRUE
+  )
+}
+
+if (nrow(car_entrez) > 0) {
+  ego_car <- enrichGO(
+    gene          = car_entrez$ENTREZID,
+    universe      = bg_entrez$ENTREZID,
+    OrgDb         = org.Mm.eg.db,
+    keyType       = "ENTREZID",
+    ont = "BP",
+    pvalueCutoff  = 0.25,
+    readable      = TRUE
+  )
+}
+
+
+ego_ctrl@result %>% as.data.frame()
+ego_car@result %>% as.data.frame()
+
+
+dotplot(ego_ctrl, showCategory = c("cell chemotaxis", "ossification", "response to wounding", "cell communication by electrical coupling", "tissue remodeling", "tissue remodeling", "regulation of cell communication by electrical coupling", "positive regulation of cell adhesion"), title = "GO BP Up in X")
+
+
+dotplot(ego_car, title = "GO BP Up in CAR")
+
+
+results_all_f <- results_all %>% filter(padj < 0.05)
+
+```
+
+
+
+
+```{r}
+
+###### Extended figure 6d
+
+peak_ids <- rownames(result$dds)
+
+library(GenomicRanges)
+
+# Split peak IDs
+peak_split <- do.call(rbind, strsplit(peak_ids, "-"))
+colnames(peak_split) <- c("chr", "start", "end")
+
+gr <- GRanges(
+  seqnames = peak_split[, "chr"],
+  ranges   = IRanges(
+    start = as.numeric(peak_split[, "start"]),
+    end   = as.numeric(peak_split[, "end"])
+  )
+)
+names(gr) <- peak_ids
+
+library(ChIPseeker)
+library(TxDb.Mmusculus.UCSC.mm10.knownGene)
+library(org.Mm.eg.db)
+
+txdb <- TxDb.Mmusculus.UCSC.mm10.knownGene
+
+peak_annot <- annotatePeak(
+  gr,
+  TxDb = txdb,
+  annoDb = "org.Mm.eg.db"
+)
+
+peak_annot_df <- as.data.frame(peak_annot)
+
+peak_annot_df$peakID <- paste0(
+  peak_annot_df$seqnames, "-",
+  peak_annot_df$start, "-",
+  peak_annot_df$end
+)
+
+peak2gene <- data.frame(
+  peakID = peak_annot_df$peakID,
+  SYMBOL = peak_annot_df$SYMBOL,
+  distanceToTSS = peak_annot_df$distanceToTSS,
+  annotation = peak_annot_df$annotation,
+  stringsAsFactors = FALSE
+)
+
+genes_of_interest<- c("Ccl3", "Csf1", "Slc2a6", "Slc29a1", "Slc15a3", "Cxcl12", "Il6", "Csf3", "Mmp16", "Mmp3", "Mmp9", "Il1a", "Nlrp3", "Slc11a1", "Nos2", "Ptgir", "Tgif1", "C3", "Cdh11", "Col1a1")
+
+
+selected_peaks <- peak2gene$peakID[peak2gene$SYMBOL %in% genes_of_interest]
+length(selected_peaks)
+
+vsd <- vst(dds, blind = FALSE)
+mat <- assay(vsd)
+
+mat_sel <- mat[selected_peaks, , drop = FALSE]
+
+# Row z-score
+mat_z <- t(scale(t(mat_sel)))
+
+sampleAnnot <- as.data.frame(colData(dds))
+
+sample_order <- c("A1", "A2", "A3", "A4", "A5", "A6")
+
+# Reorder columns in the matrix
+mat_z <- mat_z[, sample_order, drop = FALSE]
+
+# Reorder sample annotations to match
+sampleAnnot <- sampleAnnot[sample_order, , drop = FALSE]
+
+library(dplyr)
+
+# Combine mat_sel with gene symbols
+peak_gene_map <- peak2gene %>%
+  dplyr::filter(peakID %in% rownames(mat_sel)) %>%
+  dplyr::select(peakID, SYMBOL)
+
+#peak_gene_map <- peak2gene %>%
+ # filter(peakID %in% rownames(mat_sel)) %>%
+  #select(peakID, SYMBOL)
+
+# Subset mat_sel to only peaks of interest
+mat_sel <- mat_sel[peak_gene_map$peakID, ]
+
+# Aggregate by gene: take rowMeans
+gene_mat <- t(sapply(unique(peak_gene_map$SYMBOL), function(gene) {
+  rows <- which(peak_gene_map$SYMBOL == gene)
+  if(length(rows) > 1) {
+    colMeans(mat_sel[rows, , drop = FALSE])
+  } else {
+    mat_sel[rows, ]
+  }
+}))
+
+rownames(gene_mat) <- unique(peak_gene_map$SYMBOL)
+
+gene_mat_z <- t(scale(t(gene_mat)))
+
+sample_order <- c("A1", "A2", "A3", "A4", "A5", "A6")
+gene_mat_z <- gene_mat_z[, sample_order]
+sampleAnnot <- sampleAnnot[sample_order, , drop = FALSE]
+
+
+# Cap values at -2 and 2
+gene_mat_z[gene_mat_z > 1.5] <- 1.5
+gene_mat_z[gene_mat_z < -1.5] <- -1.5
+
+library(RColorBrewer)
+
+col_fun <- colorRampPalette(c("blue", "white", "red"))(15)
+
+library(pheatmap)
+pheatmap(
+  gene_mat_z,
+  annotation_col = sampleAnnot,
+  cluster_rows = TRUE,   # disable row clustering to respect order
+  cluster_cols = FALSE,
+  show_rownames = TRUE,
+  show_colnames = TRUE,
+  fontsize_row = 10,
+  fontsize_col = 10,
+  border_color = NA,
+  color = col_fun
+)
+
+
+```
+
+
+
+
+
+
