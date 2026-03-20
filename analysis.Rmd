@@ -1,0 +1,258 @@
+
+
+
+```{r}
+library(DESeq2)
+library(dplyr)
+library(ggplot2)
+library(ComplexHeatmap)
+library(circlize)
+#devtools::install_github("chrismahony/sprokforlife")  
+library(sporkforlife)
+options(bitmapType='cairo')
+BiocManager::install("pasilla")
+BiocManager::install("apeglm")
+BiocManager::install("DEGreport")
+library(EnhancedVolcano)
+
+install.packages("tidyverse")
+```
+
+
+```{r}
+
+all_counts <- read.delim("/rds/projects/c/croftap-croftapcarcia/X204SC25043268-Z01-F001/count/all_counts.txt", row.names=1, comment.char="#")
+
+
+all_counts <- all_counts %>% dplyr::select(-c(Chr, Start,End, Strand, Length))    #remove non-essential columns
+
+colnames(all_counts) <- c("C1", "C2", "C3", "X1", "X2", "X3")  #rename columns
+
+#make meta data from count matrix
+meta_data=colnames(all_counts)
+meta_data<-as.data.frame(meta_data)
+
+#add a condition column
+meta_data$condition <- c(rep("C", 3), rep("X",3))
+colnames(meta_data)<-c("sample", "condition")
+
+#make factors
+meta_data$sample<-as.factor(meta_data$sample)
+meta_data$condition<-as.factor(meta_data$condition)
+
+
+
+order <- c("X", "C")  #the order you want your conditions to appear
+
+
+dds <- DESeqDataSetFromMatrix(countData = all_counts,
+                              colData = meta_data,
+                              design = ~ condition)
+
+keep <- rowSums(counts(dds)) >10
+dds <- dds[keep, ]
+    
+dds$condition <- factor(dds$condition, levels = c("X","C"))
+
+dds <- DESeq(dds, test = "Wald")
+
+res <- results(dds)
+res
+
+res <- results(dds, name="condition_C_vs_X")
+res <- results(dds, contrast=c("condition","C","X"))    
+    
+resultsNames(dds)
+
+resOrdered <- res[order(res$pvalue),]   
+res05 <- results(dds, alpha=0.05)    
+sum(res05$padj < 0.05, na.rm=TRUE)    
+    
+plotMA(res05, ylim=c(-2,2))    
+plotCounts(dds, gene=which.min(res$padj), intgroup="condition")
+
+d <- plotCounts(dds, gene=which.min(res$padj), intgroup="condition", 
+                returnData=TRUE)
+library("ggplot2")
+ggplot(d, aes(x=condition, y=count)) + 
+  geom_point(position=position_jitter(w=0.1,h=0)) + 
+  scale_y_log10(breaks=c(25,100,400))
+
+vsd <- vst(dds)
+head(assay(vsd), 3)
+
+select <- order(rowMeans(counts(dds,normalized=TRUE)),
+                decreasing=TRUE)[1:20]
+df <- as.data.frame(colData(dds)[,c("condition","sample")])
+pheatmap(assay(vsd)[select,], cluster_rows=FALSE, show_rownames=FALSE,
+         cluster_cols=FALSE, annotation_col=df)
+
+sampleDists <- dist(t(assay(vsd)))
+
+sampleDistMatrix <- as.matrix(sampleDists)
+rownames(sampleDistMatrix) <- paste(vsd$condition, vsd$type, sep="-")
+colnames(sampleDistMatrix) <- NULL
+colors <- colorRampPalette( rev(brewer.pal(9, "Blues")) )(255)
+pheatmap(sampleDistMatrix,
+         clustering_distance_rows=sampleDists,
+         clustering_distance_cols=sampleDists,
+         col=colors)
+
+plotPCA(vsd, intgroup=c("condition", "sample"))
+
+degs <- degComps(dds, combs = "condition",
+                 contrast = list( c("condition", "X", "C") ))
+
+DEGs <- data.frame(results(dds, contrast=c("condition", "X", "C"), alpha = 0.05))
+
+DEGs$cluster <- "NO"
+DEGs$cluster[DEGs$log2FoldChange > 0.001] <- "UP"
+DEGs$cluster[DEGs$log2FoldChange < -0.001] <- "DOWN"
+
+
+index <- match(rownames(DEGs), annotation_gs$gene_name)
+DEGs$gene_name <- annotation_gs$gene_name[index]
+
+EnhancedVolcano(DEGs,
+    lab = DEGs$gene_name,
+    x = 'log2FoldChange',
+    y = 'padj',
+           title = "CAR",
+    subtitle = "GEX, red=p_adj<0.05 & FC > 0.5",
+    xlim = c(-15, 15),
+    pCutoff = 0.05,
+    FCcutoff = 1,
+    pointSize = 3.0,
+    labSize = 3,
+    cutoffLineType = 'twodash',
+    cutoffLineWidth = 0.3,
+    gridlines.major = FALSE,
+    gridlines.minor = FALSE,
+      legendPosition = 'none',
+    legendLabSize = 10,
+    legendIconSize =3.0,
+    legendLabels=c('NS','p<0.05 & FC > 0.25'),
+    col=c('black', 'black', 'black', 'red3'),
+          drawConnectors = TRUE,
+    widthConnectors = 0.3,
+    max.overlaps = 0,
+     xlab = bquote(~Log[2]~ 'fold change'),
+    boxedLabels = T,
+    borderWidth = 0.5,
+    )
+
+
+#####manually add genes to volcano plot
+selectLab = "Cxcl5", "Tnfsf11", "Ccl20", "Il1r1", "Il1rl1", "Il17rc", "Il17ra", "Il6st", "Il11", "Mmp9", "Mmp23", "Mmp17", "Mmp2", "Mmp15", "Mmp13", "Mmp12", "Mmp10", "Mmp8", "Mmp11", "Mmp19", "Mmp28", "Mmp14", "Mmp25",
+
+result <- process_deseq_PCA(counts = all_counts, 
+                             meta_data = meta_data, 
+                             relevel_condition = order, 
+                             min_gene_count = 200)
+
+dds <- result$dds
+pca_plot <- result$pca_plot
+
+pca_plot
+
+```
+```{r}
+
+library(gsfisher)
+annotation_gs <- fetchAnnotation(species="mm", ensembl_version=NULL, ensembl_host=NULL)
+
+
+custom_colors <- c("C" = "red", "X" = "blue")
+
+#define order of how you want to plot the heatmap
+custom_order <- c("C", "X")
+
+
+
+
+run_deseq_contrast_heatmap(dds = dds, 
+                           meta_data = meta_data, 
+                           targetvar = "condition", 
+                           p_value_threshold = 0.05, 
+                           log2fc_threshold = 0.1, 
+                           condition_colors = custom_colors,
+                           condition_order = custom_order,
+                           go_analysis = TRUE, 
+                           organism = "mm", 
+                           annotation_gs = annotation_gs)
+
+DEGs_f$log2FoldChange <- DEGs_f$log2FoldChange * -1
+
+
+
+
+
+DEGs_f$cluster <- "NO"
+DEGs_f$cluster[DEGs_f$log2FoldChange > 0.001] <- "UP"
+DEGs_f$cluster[DEGs_f$log2FoldChange < -0.001] <- "DOWN"
+
+DEGs_f$comparison <- "C_vs_X"
+
+
+
+FilteredGeneID <- unique(DEGs$gene)
+        index <- match(FilteredGeneID, annotation_gs$gene_name)
+        ensemblUni <- annotation_gs$ensembl_id[index]
+        ensemblUni <- na.omit(ensemblUni)
+
+        index <- match(DEGs$gene, annotation_gs$gene_name)
+        DEGs$ensembl <- annotation_gs$ensembl_id[index]
+        DEGs <- na.omit(DEGs)
+
+        go.results <- runGO.all(results = DEGs, background_ids = ensemblUni, 
+            gene_id_col = "ensembl", gene_id_type = "ensembl", 
+            sample_col = "cluster", p_col = "padj", p_threshold = 0.05, 
+            species = "mm")
+        
+        go.results <- filterGenesets(go.results)
+        go.results.top <- go.results %>% group_by(cluster) %>% 
+            top_n(n = 5, -p.val)
+        sampleEnrichmentDotplot(go.results, selection_col = "description", 
+            selected_genesets = c("antigen processing and presentation of peptide antigen", "negative regulation of endopeptidase activity", "regulation of cell killing", "signaling receptor inhibitor activity", "negative regulation of immune response", "Notch signaling pathway", "bone remodelling", "regulation of Wnt signaling pathway", "tissue remodelling", "mesenchyme development", "regulation of canonical Wnt signaling pathway", "tissue migration"), 
+            sample_id_col = "cluster", fill_var = "odds.ratio", 
+            maxl = 50, title = "GO Term Enrichment", rotate_sample_labels = TRUE) + Font(x.text = 12, y.text = 12) + ylab(NULL) +xlab(NULL)
+
+
+###########heatmaps
+
+Heatmap(scale_sub_vsd, border=T, show_row_names = F)
+
+
+normalized_counts <- counts(dds, normalized=TRUE)
+
+
+normalized_counts <- normalized_counts[]
+
+vsd <- vst(dds, blind = TRUE)
+vsd_mat <- assay(vsd)
+norm_expr_mat<- t(scale(t(vsd_mat)))
+#pathology
+Heatmap(norm_expr_mat[c("Cxcl5", "Tnfsf11", "Ccl20", "Il1r1", "Il1rl1", "Il17rc", "Il17ra", "Il6st", "Il11", "Mmp9", "Mmp23", "Mmp17", "Mmp2", "Mmp15", "Mmp13", "Mmp12", "Mmp10", "Mmp8", "Mmp11", "Mmp19", "Mmp28", "Mmp14", "Mmp25", "Creb5", "Cd34", "Il2", "Il1r2", "Il1rl2", "Il19", "Ildr2", "Il7", "Il11ra1"),c(4,5,6,1,2,3)], border=T, show_row_names = T, cluster_columns = F,c("blue", "white", "red"))
+
+
+#normal
+Heatmap(norm_expr_mat[c("Hbegf", "Clic5", "Tspan15", "Prg4", "Has1", "Thy1", "Cdh11", "Cd55", "Cd248", "Vcam1", "Cd200", "Pdgfra", "Pdgfrb", "Megf10", "F13a1", "Csf1", "Cthrc1", "Postn"),c(4,5,6,1,2,3)], border=T, show_row_names = T, cluster_columns = F,c("blue", "white", "red"))
+
+
+
+```
+
+```{r}
+write.csv(DEGs_f, file = "Extended Table 1")
+write.csv(go.results, file = "Extended Table 2")
+
+```
+
+
+
+
+
+
+
+
+
