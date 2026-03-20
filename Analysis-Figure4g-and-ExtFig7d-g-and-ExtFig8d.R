@@ -16,7 +16,7 @@ library(EnhancedVolcano)
 
 getwd()
 
-#rm(bsa_c1)
+###########resting
 bsa_c1 <- Read10X(data.dir = "/rds/projects/c/croftap-aia-seq-data/ALL_data/all_neg/D0_cd45neg_1_b5")
 bsa_c1 <- CreateSeuratObject(counts = bsa_c1, min.cells=3, min.features=100, project="bsa_c1")
 bsa_c1 <- RenameCells(bsa_c1, add.cell.id = "bsa_c1")
@@ -25,7 +25,6 @@ bsa_c1$type <- "CD45neg"
 bsa_c1$InflammationStatus <- "Resting"
 head(bsa_c1)
 
-#rm(bsa_c2)
 bsa_c2 <- Read10X(data.dir = "/rds/projects/c/croftap-aia-seq-data/ALL_data/all_neg/D0_cd45neg_2_b3")
 bsa_c2 <- CreateSeuratObject(counts = bsa_c2, min.cells=3, min.features=100, project="bsa_c2")
 bsa_c2 <- RenameCells(bsa_c2, add.cell.id = "bsa_c2")
@@ -34,7 +33,6 @@ bsa_c2$type <- "CD45neg"
 bsa_c2$InflammationStatus <- "Resting"
 head(bsa_c2)
 
-#rm(bsa_c3)
 bsa_c3 <- Read10X(data.dir = "/rds/projects/c/croftap-aia-seq-data/ALL_data/all_neg/D0_cd45neg_3_b6")
 bsa_c3 <- CreateSeuratObject(counts = bsa_c3, min.cells=3, min.features=100, project="bsa_c3")
 bsa_c3 <- RenameCells(bsa_c3, add.cell.id = "bsa_c3")
@@ -43,7 +41,9 @@ bsa_c3$type <- "CD45neg"
 bsa_c3$InflammationStatus <- "Resting"
 head(bsa_c3)
 
-#rm(bsa_In1)
+
+###########AIA
+##############peak of inflammation
 bsa_In1 <- Read10X(data.dir = "/rds/projects/c/croftap-aia-seq-data/ALL_data/all_neg/D2_cd45neg_1_b5")
 bsa_In1 <- CreateSeuratObject(counts = bsa_In1, min.cells=3, min.features=100, project="bsa_In1")
 bsa_In1 <- RenameCells(bsa_In1, add.cell.id = "bsa_In1")
@@ -52,7 +52,6 @@ bsa_In1$type <- "CD45neg"
 bsa_In1$InflammationStatus <- "Peak"
 head(bsa_In1)
 
-#rm(bsa_In2)
 bsa_In2 <- Read10X(data.dir = "/rds/projects/c/croftap-aia-seq-data/ALL_data/all_neg/D2_cd45neg_2_b5")
 bsa_In2 <- CreateSeuratObject(counts = bsa_In2, min.cells=3, min.features=100, project="bsa_In2")
 bsa_In2 <- RenameCells(bsa_In2, add.cell.id = "bsa_In2")
@@ -61,7 +60,6 @@ bsa_In2$type <- "CD45neg"
 bsa_In2$InflammationStatus <- "Peak"
 head(bsa_In2)
 
-#rm(bsa_In3)
 bsa_In3 <- Read10X(data.dir = "/rds/projects/c/croftap-aia-seq-data/ALL_data/all_neg/D2_cd45neg_3_b1")
 bsa_In3 <- CreateSeuratObject(counts = bsa_In3, min.cells=3, min.features=100, project="bsa_In3")
 bsa_In3 <- RenameCells(bsa_In3, add.cell.id = "bsa_In3")
@@ -70,7 +68,7 @@ bsa_In3$type <- "CD45neg"
 bsa_In3$InflammationStatus <- "Peak"
 head(bsa_In3)
 
-#rm(bsa_Ereslvn1)
+############early resolving
 bsa_Ereslvn1 <- Read10X(data.dir = "/rds/projects/c/croftap-aia-seq-data/ALL_data/all_neg/D4_cd45neg_1_b1")
 bsa_Ereslvn1 <- CreateSeuratObject(counts = bsa_Ereslvn1, min.cells=3, min.features=100, project="bsa_Ereslvn1")
 bsa_Ereslvn1 <- RenameCells(bsa_Ereslvn1, add.cell.id = "bsa_Ereslvn1")
@@ -79,7 +77,6 @@ bsa_Ereslvn1$type <- "CD45neg"
 bsa_Ereslvn1$InflammationStatus <- "Ereslvn"
 head(bsa_Ereslvn1)
 
-#rm(bsa_Ereslvn2)
 bsa_Ereslvn2 <- Read10X(data.dir = "/rds/projects/c/croftap-aia-seq-data/ALL_data/all_neg/D4_cd45neg_2_b1")
 bsa_Ereslvn2 <- CreateSeuratObject(counts = bsa_Ereslvn2, min.cells=3, min.features=100, project="bsa_Ereslvn2")
 bsa_Ereslvn2 <- RenameCells(bsa_Ereslvn2, add.cell.id = "bsa_Ereslvn2")
@@ -88,7 +85,6 @@ bsa_Ereslvn2$type <- "CD45neg"
 bsa_Ereslvn2$InflammationStatus <- "Ereslvn"
 head(bsa_Ereslvn2)
 
-#rm(bsa_Ereslvn3)
 bsa_Ereslvn3 <- Read10X(data.dir = "/rds/projects/c/croftap-aia-seq-data/ALL_data/all_neg/D4_cd45neg_3_b1")
 bsa_Ereslvn3 <- CreateSeuratObject(counts = bsa_Ereslvn3, min.cells=3, min.features=100, project="bsa_Ereslvn3")
 bsa_Ereslvn3 <- RenameCells(bsa_Ereslvn3, add.cell.id = "bsa_Ereslvn3")
@@ -97,7 +93,7 @@ bsa_Ereslvn3$type <- "CD45neg"
 bsa_Ereslvn3$InflammationStatus <- "Ereslvn"
 head(bsa_Ereslvn3)
 
-#rm(bsa_Lreslvn1)
+############Resolving
 bsa_Reslvn1 <- Read10X(data.dir = "/rds/projects/c/croftap-aia-seq-data/ALL_data/all_neg/D7_cd45neg_1_b2")
 bsa_Reslvn1 <- CreateSeuratObject(counts = bsa_Reslvn1, min.cells=3, min.features=100, project="bsa_Reslvn1")
 bsa_Reslvn1 <- RenameCells(bsa_Reslvn1, add.cell.id = "bsa_Reslvn1")
@@ -106,7 +102,6 @@ bsa_Reslvn1$type <- "CD45neg"
 bsa_Reslvn1$InflammationStatus <- "Reslvn"
 head(bsa_Reslvn1)
 
-#rm(bsa_Lreslvn2)
 bsa_Reslvn2 <- Read10X(data.dir = "/rds/projects/c/croftap-aia-seq-data/ALL_data/all_neg/D7_cd45neg_2_b2")
 bsa_Reslvn2 <- CreateSeuratObject(counts = bsa_Reslvn2, min.cells=3, min.features=100, project="bsa_Reslvn2")
 bsa_Reslvn2 <- RenameCells(bsa_Reslvn2, add.cell.id = "bsa_Reslvn2")
@@ -115,7 +110,6 @@ bsa_Reslvn2$type <- "CD45neg"
 bsa_Reslvn2$InflammationStatus <- "Reslvn"
 head(bsa_Reslvn2)
 
-#rm(bsa_Lreslvn3)
 bsa_Reslvn3 <- Read10X(data.dir = "/rds/projects/c/croftap-aia-seq-data/ALL_data/all_neg/D7_cd45neg_3_b2")
 bsa_Reslvn3 <- CreateSeuratObject(counts = bsa_Reslvn3, min.cells=3, min.features=100, project="bsa_Reslvn3")
 bsa_Reslvn3 <- RenameCells(bsa_Reslvn3, add.cell.id = "bsa_Reslvn3")
@@ -124,7 +118,7 @@ bsa_Reslvn3$type <- "CD45neg"
 bsa_Reslvn3$InflammationStatus <- "Reslvn"
 head(bsa_Reslvn3)
 
-#rm(bsa_Reslvd1)
+############resolved
 bsa_Reslvd1 <- Read10X(data.dir = "/rds/projects/c/croftap-aia-seq-data/ALL_data/all_neg/D14_cd45neg_1_b6")
 bsa_Reslvd1 <- CreateSeuratObject(counts = bsa_Reslvd1, min.cells=3, min.features=100, project="bsa_Reslvd1")
 bsa_Reslvd1 <- RenameCells(bsa_Reslvd1, add.cell.id = "bsa_Reslvd1")
@@ -133,7 +127,6 @@ bsa_Reslvd1$type <- "CD45neg"
 bsa_Reslvd1$InflammationStatus <- "Reslvd"
 head(bsa_Reslvd1)
 
-#rm(bsa_Reslvd2)
 bsa_Reslvd2 <- Read10X(data.dir = "/rds/projects/c/croftap-aia-seq-data/ALL_data/all_neg/D14_cd45neg_2_b6")
 bsa_Reslvd2 <- CreateSeuratObject(counts = bsa_Reslvd2, min.cells=3, min.features=100, project="bsa_Reslvd2")
 bsa_Reslvd2 <- RenameCells(bsa_Reslvd2, add.cell.id = "bsa_Reslvd2")
@@ -142,7 +135,6 @@ bsa_Reslvd2$type <- "CD45neg"
 bsa_Reslvd2$InflammationStatus <- "Reslvd"
 head(bsa_Reslvd2)
 
-#rm(bsa_Reslvd3)
 bsa_Reslvd3 <- Read10X(data.dir = "/rds/projects/c/croftap-aia-seq-data/ALL_data/all_neg/D14_cd45neg_3_b6")
 bsa_Reslvd3 <- CreateSeuratObject(counts = bsa_Reslvd3, min.cells=3, min.features=100, project="bsa_Reslvd3")
 bsa_Reslvd3 <- RenameCells(bsa_Reslvd3, add.cell.id = "bsa_Reslvd3")
@@ -151,7 +143,8 @@ bsa_Reslvd3$type <- "CD45neg"
 bsa_Reslvd3$InflammationStatus <- "Reslvd"
 head(bsa_Reslvd3)
 
-
+#############STIA
+###########resting
 STIA_c1 <- Read10X(data.dir = "/rds/projects/2018/croftap-time-course-rna-ss/STIA_data_timecourse/FASTQ/CON_A/Align/CON_A/outs/filtered_feature_bc_matrix")
 STIA_c1 <- CreateSeuratObject(counts = STIA_c1, min.cells=3, min.features=100, project="STIA_c1")
 STIA_c1 <- RenameCells(STIA_c1, add.cell.id = "STIA_c1")
@@ -176,6 +169,7 @@ STIA_c3$model <- "STIA"
 STIA_c3$InflammationStatus <- "Control"
 head(STIA_c3)
 
+##############peak of inflammation
 STIA_in1 <- Read10X(data.dir = "/rds/projects/2018/croftap-time-course-rna-ss/STIA_data_timecourse/FASTQ/PEAK_A/Align/PEAK_A/outs/filtered_feature_bc_matrix")
 STIA_in1 <- CreateSeuratObject(counts = STIA_in1, min.cells=3, min.features=100, project="STIA_in1")
 STIA_in1 <- RenameCells(STIA_in1, add.cell.id = "STIA_in1")
@@ -200,6 +194,7 @@ STIA_in3$model <- "STIA"
 STIA_in3$InflammationStatus <- "Inflamed"
 head(STIA_in3)
 
+###########resolving
 STIA_Reslvn1 <- Read10X(data.dir = "/rds/projects/2018/croftap-time-course-rna-ss/STIA_data_timecourse/FASTQ/RESING_A/Align/RESING_A/outs/filtered_feature_bc_matrix")
 STIA_Reslvn1 <- CreateSeuratObject(counts = STIA_Reslvn1, min.cells=3, min.features=100, project="STIA_Reslvn1")
 STIA_Reslvn1 <- RenameCells(STIA_Reslvn1, add.cell.id = "STIA_Reslvn1")
@@ -224,6 +219,7 @@ STIA_Reslvn3$model <- "STIA"
 STIA_Reslvn3$InflammationStatus <- "Resolving"
 head(STIA_Reslvn3)
 
+############resolved
 STIA_Reslvd1 <- Read10X(data.dir = "/rds/projects/2018/croftap-time-course-rna-ss/STIA_data_timecourse/FASTQ/RESED_A/Align/RESED_A/outs/filtered_feature_bc_matrix")
 STIA_Reslvd1 <- CreateSeuratObject(counts = STIA_Reslvd1, min.cells=3, min.features=100, project="STIA_Reslvd1")
 STIA_Reslvd1 <- RenameCells(STIA_Reslvd1, add.cell.id = "STIA_Reslvd1")
@@ -248,8 +244,8 @@ STIA_Reslvd3$model <- "STIA"
 STIA_Reslvd3$InflammationStatus <- "Resolved"
 head(STIA_Reslvd3)
 
-
-rm(CIA_c2)
+#####################CIA
+############resting
 CIA_c2 <- Read10X(data.dir = "/rds/projects/c/croftap-ktr-cia-sc-01/CIA_CD45neg/Con2_CD45neg/outs/filtered_feature_bc_matrix")
 CIA_c2 <- CreateSeuratObject(counts = CIA_c2, min.cells=3, min.features=100, project="CIA_c2")
 CIA_c2 <- RenameCells(CIA_c2, add.cell.id = "CIA_c2")
@@ -258,7 +254,6 @@ CIA_c2$model <- "CIA"
 CIA_c2$InflammationStatus <- "Control"
 head(CIA_c2)
 
-rm(CIA_c3)
 CIA_c3 <- Read10X(data.dir = "/rds/projects/c/croftap-ktr-cia-sc-01/CIA_CD45neg/Con3_CD45neg/outs/filtered_feature_bc_matrix")
 CIA_c3 <- CreateSeuratObject(counts = CIA_c3, min.cells=3, min.features=100, project="CIA_c3")
 CIA_c3 <- RenameCells(CIA_c3, add.cell.id = "CIA_c3")
@@ -267,7 +262,6 @@ CIA_c3$model <- "CIA"
 CIA_c3$InflammationStatus <- "Control"
 head(CIA_c3)
 
-rm(CIA_c4)
 CIA_c4 <- Read10X(data.dir = "/rds/projects/c/croftap-ktr-cia-sc-01/CIA_CD45_pos/Con4_CD45neg/outs/filtered_feature_bc_matrix")
 CIA_c4 <- CreateSeuratObject(counts = CIA_c4, min.cells=3, min.features=100, project="CIA_c4")
 CIA_c4 <- RenameCells(CIA_c4, add.cell.id = "CIA_c4")
@@ -276,7 +270,7 @@ CIA_c4$model <- "CIA"
 CIA_c4$InflammationStatus <- "Control"
 head(CIA_c4)
 
-rm(CIA_in1)
+##############inflamed
 CIA_in1 <- Read10X(data.dir = "/rds/projects/c/croftap-ktr-cia-sc-01/CIA_CD45neg/Infla1_CD45neg/outs/filtered_feature_bc_matrix")
 CIA_in1 <- CreateSeuratObject(counts = CIA_in1, min.cells=3, min.features=100, project="CIA_in1")
 CIA_in1 <- RenameCells(CIA_in1, add.cell.id = "CIA_in1")
@@ -285,7 +279,6 @@ CIA_in1$model <- "CIA"
 CIA_in1$InflammationStatus <- "Inflamed"
 head(CIA_in1)
 
-rm(CIA_in2)
 CIA_in2 <- Read10X(data.dir = "/rds/projects/c/croftap-ktr-cia-sc-01/CIA_CD45neg/Infla2_CD45neg/outs/filtered_feature_bc_matrix")
 CIA_in2 <- CreateSeuratObject(counts = CIA_in2, min.cells=3, min.features=100, project="CIA_in2")
 CIA_in2 <- RenameCells(CIA_in2, add.cell.id = "CIA_in2")
@@ -294,7 +287,6 @@ CIA_in2$model <- "CIA"
 CIA_in2$InflammationStatus <- "Inflamed"
 head(CIA_in2)
 
-rm(CIA_in3)
 CIA_in3 <- Read10X(data.dir = "/rds/projects/c/croftap-ktr-cia-sc-01/CIA_CD45neg/Infla3_CD45neg/outs/filtered_feature_bc_matrix")
 CIA_in3 <- CreateSeuratObject(counts = CIA_in3, min.cells=3, min.features=100, project="CIA_in3")
 CIA_in3 <- RenameCells(CIA_in3, add.cell.id = "CIA_in3")
@@ -1010,7 +1002,7 @@ new.cluster.ids <- c("0", "1", "2", "3", "4", "1")
 names(new.cluster.ids) <- levels(FB.integrated.5k.time)
 FB.integrated.5k.time <- RenameIdents(FB.integrated.5k.time, new.cluster.ids)
 
-########Extended data figure 6f
+########Extended data figure 6d
 DimPlot(FB.integrated.5k.time, reduction = "umap", label = T, pt.size = 0.1, repel = T, label.box = T, cols = "Set2", split.by = "InflammationStatus") + NoLegend() + NoAxes()
 
 
@@ -1051,14 +1043,14 @@ comp <- list(c("Inflamed", "Control"), c("Inflamed", "Resolving"), c("Inflamed",
 VlnPlot(FB.integrated.5k.time, features = "Pi16_PBS1", adjust = 1, pt.size = 0,split.by = "InflammationStatus")+NoLegend()+xlab(NULL)+stat_compare_means(label = "p.signif", comparisons = comp, method = "t.test")+ylim(-0.5, 1.2)+scale_fill_manual(values = c("grey", "grey", "grey", "grey"))
 VlnPlot(FB.integrated.5k.time, features = "Pi16_CAR1", adjust = 1, pt.size = 0,split.by = "InflammationStatus")+NoLegend()+xlab(NULL)+stat_compare_means(label = "p.signif", comparisons = comp, method = "t.test")+ylim(-0.5, 1.2)+scale_fill_manual(values = c("firebrick3", "firebrick3", "firebrick3", "firebrick3"))
 
-############extended data figure g
+############extended data figure 7e
 plot_density(FB.integrated.5k.time, features = "Pi16_PBS1", combine = F, method = "wkde", size = 1, adjust = 1)+NoAxes()+ scale_color_gradientn(colours = magma(20))+facet_grid(.~FB.integrated.5k.time$InflammationStatus)
 plot_density(FB.integrated.5k.time, features = "Pi16_CAR1", combine = F, method = "wkde", size = 1, adjust = 1)+NoAxes()+ scale_color_gradientn(colours = magma(20))+facet_grid(.~FB.integrated.5k.time$InflammationStatus)
 
-############extended data figure i
+############extended data figure 7f
 plot_density(FB.integrated.5k.time, features = "Pi16", combine = F, method = "wkde", size = 1, adjust = 1)+NoAxes()+ scale_color_gradientn(colours = magma(20))+facet_grid(.~FB.integrated.5k.time$InflammationStatus)
 
-############extended data figure h
+############extended data figure 7g
 plot_density(FB.integrated.5k.time, features = "Cxcl5", combine = F, method = "wkde", size = 1, adjust = 1)+NoAxes()+ scale_color_gradientn(colours = magma(20))+facet_grid(.~FB.integrated.5k.time$InflammationStatus)
 
 
@@ -1089,109 +1081,7 @@ FB.integrated.5k.time <- AddModuleScore(
   name = 'fib3'
 )
 
-############extended data figure 7e
+############extended data figure 8d
 VlnPlot(FB.integrated.5k.time, features = "fib31", adjust = 1, pt.size = 0,split.by = "InflammationStatus")+NoLegend()+xlab(NULL)+stat_compare_means(label = "p.signif", comparisons = comp, method = "t.test")+ylim(-0.5, 1.2)+scale_fill_manual(values = c("olivedrab", "olivedrab", "olivedrab", "olivedrab"))
-
-
-############################annotations
-
-Idents(FB.integrated.5k.time)<-"integrated_snn_res.0.2"
-DimPlot(FB.integrated.5k.time)
-DimPlot(FB.integrated.5k.time, split.by = "InflammationStatus")
-FeaturePlot(FB.integrated.5k.time, features = "Cd200")
-VlnPlot(FB.integrated.5k.time, features = "Dkk3")
-
-current.sample.ids <- c("0", "1", "2", "3", "4", "5", "6", "7", "8")
-new.sample.ids <- c("Postn_Cxcl5", "Cd34_Mfap5", "Fmod_Cilp", "Pi16_Resolv", "Pi16_Rest", "Cd200_Dkk3", "Prg4_Hbegf", "Fmod_Cilp", "Fmod_Cilp")
-
-
-FB.integrated.5k.time$fb_clusters <- FB.integrated.5k.time@active.ident
-FB.integrated.5k.time@meta.data[["fb_clusters"]] <- plyr::mapvalues(x = FB.integrated.5k.time@meta.data[["fb_clusters"]], from = current.sample.ids, to = new.sample.ids)
-Idents(FB.integrated.5k.time)<-"fb_clusters"
-
-DimPlot(FB.integrated.5k.time)+NoAxes()
-DimPlot(FB.integrated.5k.time, split.by = "InflammationStatus")+NoAxes()
-
-VlnPlot(FB.integrated.5k.time, features = "Ngf")+NoLegend()+xlab(NULL)
-VlnPlot(FB.integrated.5k.time, features = "Ptgs2")+NoLegend()+xlab(NULL)
-VlnPlot(FB.integrated.5k.time, features = "Ptgs2", group.by = "InflammationStatus")+NoLegend()+xlab(NULL)
-VlnPlot(FB.integrated.5k.time, features = "Trpa1")+NoLegend()+xlab(NULL)
-VlnPlot(FB.integrated.5k.time, features = "Ntn4")+NoLegend()+xlab(NULL)
-VlnPlot(FB.integrated.5k.time, features = "Ntn4", group.by = "InflammationStatus")+NoLegend()+xlab(NULL)
-VlnPlot(FB.integrated.5k.time, features = "Hbegf")+NoLegend()+xlab(NULL)
-VlnPlot(FB.integrated.5k.time, features = "Hbegf", group.by = "InflammationStatus")+NoLegend()+xlab(NULL)
-VlnPlot(FB.integrated.5k.time, features = "Efna3")+NoLegend()+xlab(NULL)
-VlnPlot(FB.integrated.5k.time, features = "Efna5")+NoLegend()+xlab(NULL)
-VlnPlot(FB.integrated.5k.time, features = "Efna5", group.by = "InflammationStatus")+NoLegend()+xlab(NULL)
-VlnPlot(FB.integrated.5k.time, features = "Efnb2")+NoLegend()+xlab(NULL)
-VlnPlot(FB.integrated.5k.time, features = "Efnb2", group.by = "InflammationStatus")+NoLegend()+xlab(NULL)
-VlnPlot(FB.integrated.5k.time, features = "Efnb1")+NoLegend()+xlab(NULL)
-VlnPlot(FB.integrated.5k.time, features = "Efnb1", group.by = "InflammationStatus")+NoLegend()+xlab(NULL)
-VlnPlot(FB.integrated.5k.time, features = "Efnb3")+NoLegend()+xlab(NULL)
-VlnPlot(FB.integrated.5k.time, features = "Sema3a")+NoLegend()+xlab(NULL)
-VlnPlot(FB.integrated.5k.time, features = "Sema3a", group.by = "InflammationStatus")+NoLegend()+xlab(NULL)
-VlnPlot(FB.integrated.5k.time, features = "Sema3b")+NoLegend()+xlab(NULL)
-VlnPlot(FB.integrated.5k.time, features = "Sema3b", group.by = "InflammationStatus")+NoLegend()+xlab(NULL)
-VlnPlot(FB.integrated.5k.time, features = "Sema3c")+NoLegend()+xlab(NULL)
-VlnPlot(FB.integrated.5k.time, features = "Sema3c", group.by = "InflammationStatus")+NoLegend()+xlab(NULL)
-VlnPlot(FB.integrated.5k.time, features = "Sema3d")+NoLegend()+xlab(NULL)
-VlnPlot(FB.integrated.5k.time, features = "Sema3d", group.by = "InflammationStatus")+NoLegend()+xlab(NULL)
-VlnPlot(FB.integrated.5k.time, features = "Sema3e")+NoLegend()+xlab(NULL)
-VlnPlot(FB.integrated.5k.time, features = "Sema3e", group.by = "InflammationStatus")+NoLegend()+xlab(NULL)
-VlnPlot(FB.integrated.5k.time, features = "Sema3f")+NoLegend()+xlab(NULL)
-VlnPlot(FB.integrated.5k.time, features = "Sema3f", group.by = "InflammationStatus")+NoLegend()+xlab(NULL)
-VlnPlot(FB.integrated.5k.time, features = "Sema3g")+NoLegend()+xlab(NULL)
-VlnPlot(FB.integrated.5k.time, features = "Sema4a")+NoLegend()+xlab(NULL)
-VlnPlot(FB.integrated.5k.time, features = "Sema4b")+NoLegend()+xlab(NULL)
-VlnPlot(FB.integrated.5k.time, features = "Sema4c")+NoLegend()+xlab(NULL)
-VlnPlot(FB.integrated.5k.time, features = "Sema4c", group.by = "InflammationStatus")+NoLegend()+xlab(NULL)
-VlnPlot(FB.integrated.5k.time, features = "Sema4d")+NoLegend()+xlab(NULL)
-VlnPlot(FB.integrated.5k.time, features = "Sema4f")+NoLegend()+xlab(NULL)
-VlnPlot(FB.integrated.5k.time, features = "Sema4g")+NoLegend()+xlab(NULL)
-VlnPlot(FB.integrated.5k.time, features = "Sema5a")+NoLegend()+xlab(NULL)
-VlnPlot(FB.integrated.5k.time, features = "Sema5a", group.by = "InflammationStatus")+NoLegend()+xlab(NULL)
-VlnPlot(FB.integrated.5k.time, features = "Sema5b")+NoLegend()+xlab(NULL)
-VlnPlot(FB.integrated.5k.time, features = "Ctgf")+NoLegend()+xlab(NULL)
-VlnPlot(FB.integrated.5k.time, features = "Ctgf", group.by = "InflammationStatus")+NoLegend()+xlab(NULL)
-VlnPlot(FB.integrated.5k.time, features = "Itga1")+NoLegend()+xlab(NULL)
-VlnPlot(FB.integrated.5k.time, features = "Itga2")+NoLegend()+xlab(NULL)
-VlnPlot(FB.integrated.5k.time, features = "Itga3")+NoLegend()+xlab(NULL)
-VlnPlot(FB.integrated.5k.time, features = "Itga4")+NoLegend()+xlab(NULL)
-VlnPlot(FB.integrated.5k.time, features = "Itga5")+NoLegend()+xlab(NULL)
-VlnPlot(FB.integrated.5k.time, features = "Itga5", group.by = "InflammationStatus")+NoLegend()+xlab(NULL)
-VlnPlot(FB.integrated.5k.time, features = "Itga6")+NoLegend()+xlab(NULL)
-VlnPlot(FB.integrated.5k.time, features = "Itga6", group.by = "InflammationStatus")+NoLegend()+xlab(NULL)
-VlnPlot(FB.integrated.5k.time, features = "Itga7")+NoLegend()+xlab(NULL)
-VlnPlot(FB.integrated.5k.time, features = "Itga8")+NoLegend()+xlab(NULL)
-VlnPlot(FB.integrated.5k.time, features = "Itga9")+NoLegend()+xlab(NULL)
-VlnPlot(FB.integrated.5k.time, features = "Itga9", group.by = "InflammationStatus")+NoLegend()+xlab(NULL)
-VlnPlot(FB.integrated.5k.time, features = "Itga10")+NoLegend()+xlab(NULL)
-VlnPlot(FB.integrated.5k.time, features = "Itga11")+NoLegend()+xlab(NULL)
-VlnPlot(FB.integrated.5k.time, features = "Itga11", group.by = "InflammationStatus")+NoLegend()+xlab(NULL)
-VlnPlot(FB.integrated.5k.time, features = "Itgal")+NoLegend()+xlab(NULL)
-VlnPlot(FB.integrated.5k.time, features = "Itgam")+NoLegend()+xlab(NULL)
-VlnPlot(FB.integrated.5k.time, features = "Itgax")+NoLegend()+xlab(NULL)
-VlnPlot(FB.integrated.5k.time, features = "Itgb1")+NoLegend()+xlab(NULL)
-VlnPlot(FB.integrated.5k.time, features = "Itgb1", group.by = "InflammationStatus")+NoLegend()+xlab(NULL)
-VlnPlot(FB.integrated.5k.time, features = "Itgb2")+NoLegend()+xlab(NULL)
-VlnPlot(FB.integrated.5k.time, features = "Itgb3")+NoLegend()+xlab(NULL)
-VlnPlot(FB.integrated.5k.time, features = "Itgb3", group.by = "InflammationStatus")+NoLegend()+xlab(NULL)
-VlnPlot(FB.integrated.5k.time, features = "Itgb4")+NoLegend()+xlab(NULL)
-VlnPlot(FB.integrated.5k.time, features = "Itgb5")+NoLegend()+xlab(NULL)
-VlnPlot(FB.integrated.5k.time, features = "Itgb5", group.by = "InflammationStatus")+NoLegend()+xlab(NULL)
-VlnPlot(FB.integrated.5k.time, features = "Itgb6")+NoLegend()+xlab(NULL)
-VlnPlot(FB.integrated.5k.time, features = "Itgb7")+NoLegend()+xlab(NULL)
-VlnPlot(FB.integrated.5k.time, features = "Neo1")+NoLegend()+xlab(NULL)
-VlnPlot(FB.integrated.5k.time, features = "Neo1", group.by = "InflammationStatus")+NoLegend()+xlab(NULL)
-VlnPlot(FB.integrated.5k.time, features = "Lep")+NoLegend()+xlab(NULL)
-VlnPlot(FB.integrated.5k.time, features = "Robo3")+NoLegend()+xlab(NULL)
-VlnPlot(FB.integrated.5k.time, features = "Calca")+NoLegend()+xlab(NULL)
-VlnPlot(FB.integrated.5k.time, features = "Calcb")+NoLegend()+xlab(NULL)
-VlnPlot(FB.integrated.5k.time, features = "Stat3")+NoLegend()+xlab(NULL)
-VlnPlot(FB.integrated.5k.time, features = "Stat3", group.by = "InflammationStatus")+NoLegend()+xlab(NULL)
-VlnPlot(FB.integrated.5k.time, features = "Tnfsf11")+NoLegend()+xlab(NULL)
-VlnPlot(FB.integrated.5k.time, features = "Il1b")+NoLegend()+xlab(NULL)
-VlnPlot(FB.integrated.5k.time, features = "Il6")+NoLegend()+xlab(NULL)
-VlnPlot(FB.integrated.5k.time, features = "Il6", group.by = "InflammationStatus")+NoLegend()+xlab(NULL)
 
 
