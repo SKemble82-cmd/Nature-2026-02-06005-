@@ -1,4 +1,4 @@
-
+#############lines 0-112 peak annotation. lines 113 onwards analysis for Figures
 
 ```{r}
 
@@ -488,7 +488,7 @@ ha <- HeatmapAnnotation(df = sampleAnnot, which = "column")
 
 ```{r}
 
-############ extended figure 6a&b
+############ extended data figure 6a&b
 
 library(org.Mm.eg.db)
 devtools::install_github("wjawaid/enrichR")
@@ -606,7 +606,7 @@ results_all_f <- results_all %>% filter(padj < 0.05)
 
 ```{r}
 
-###### Extended figure 6d
+###### Extended data figure 6d
 
 peak_ids <- rownames(result$dds)
 
