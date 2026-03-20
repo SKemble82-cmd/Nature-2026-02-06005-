@@ -1,0 +1,508 @@
+```{r}
+
+library(DESeq2)
+library(dplyr)
+library(ggplot2)
+library(ComplexHeatmap)
+library(circlize)
+library(sporkforlife)
+library(clusterProfiler)
+library(clusterProfiler)
+
+all_samples.counts <- read.delim("/rds/projects/c/croftap-croftapcarcia/RNA_ATAC_JAN2025/RNAseq/count/pipline/results/featurecounts/all_samples.counts.txt", comment.char="#", row.names = 1)
+
+
+
+
+```
+
+```{r}
+
+all_counts <- all_samples.counts
+
+all_counts <- all_counts %>% dplyr::select(-c(Chr, Start,End, Strand, Length))    #remove non-essential columns
+
+colnames(all_counts) <- c("C3", "X1", "X3", "C1", "C2", "X2")  #rename columns
+
+
+all_counts <- all_counts[,c(2,6,3,4,5,1)]
+
+#make meta data from count matrix
+meta_data=colnames(all_counts)
+meta_data<-as.data.frame(meta_data)
+
+#add a condition column
+meta_data$condition <- c(rep("X", 3), rep("C", 3))
+colnames(meta_data)<-c("sample", "condition")
+
+#make factors
+meta_data$sample<-as.factor(meta_data$sample)
+meta_data$condition<-as.factor(meta_data$condition)
+```
+
+```{r}
+order <- c("X", "C")  #the order you want your conditions to appear
+
+dds <- DESeqDataSetFromMatrix(countData = all_counts,
+                              colData = meta_data,
+                              design = ~ condition)
+
+keep <- rowSums(counts(dds)) >10
+dds <- dds[keep, ]
+    
+dds$condition <- factor(dds$condition, levels = c("X","C"))
+
+dds <- DESeq(dds, test = "Wald")
+
+res <- results(dds)
+res
+
+res <- results(dds, name="condition_C_vs_X")
+res <- results(dds, contrast=c("condition","C","X"))    
+    
+resultsNames(dds)
+
+resOrdered <- res[order(res$pvalue),]   
+res05 <- results(dds, alpha=0.05)    
+sum(res05$padj < 0.05, na.rm=TRUE)    
+    
+plotMA(res05, ylim=c(-2,2))    
+plotCounts(dds, gene=which.min(res$padj), intgroup="condition")
+
+d <- plotCounts(dds, gene=which.min(res$padj), intgroup="condition", 
+                returnData=TRUE)
+library("ggplot2")
+ggplot(d, aes(x=condition, y=count)) + 
+  geom_point(position=position_jitter(w=0.1,h=0)) + 
+  scale_y_log10(breaks=c(25,100,400))
+
+vsd <- vst(dds)
+head(assay(vsd), 3)
+
+select <- order(rowMeans(counts(dds,normalized=TRUE)),
+                decreasing=TRUE)[1:20]
+df <- as.data.frame(colData(dds)[,c("condition","sample")])
+pheatmap(assay(vsd)[select,], cluster_rows=FALSE, show_rownames=FALSE,
+         cluster_cols=FALSE, annotation_col=df)
+
+sampleDists <- dist(t(assay(vsd)))
+
+sampleDistMatrix <- as.matrix(sampleDists)
+rownames(sampleDistMatrix) <- paste(vsd$condition, vsd$type, sep="-")
+colnames(sampleDistMatrix) <- NULL
+library(RColorBrewer)
+colors <- colorRampPalette( rev(brewer.pal(9, "Blues")) )(255)
+pheatmap(sampleDistMatrix,
+         clustering_distance_rows=sampleDists,
+         clustering_distance_cols=sampleDists,
+         col=colors)
+
+plotPCA(vsd, intgroup=c("condition", "sample"))
+library(DEGreport)
+degs <- degComps(dds, combs = "condition",
+                 contrast = list( c("condition", "X", "C") ))
+
+DEGs <- data.frame(results(dds, contrast=c("condition", "X", "C"), alpha = 0.05))
+
+DEGs$cluster <- "NO"
+DEGs$cluster[DEGs$log2FoldChange > 0.05] <- "UP"
+DEGs$cluster[DEGs$log2FoldChange < -0.05] <- "DOWN"
+
+
+library(biomaRt)
+library(gsfisher)
+
+annotation_gs <- fetchAnnotation(species="mm", ensembl_version=NULL, ensembl_host=NULL)
+
+ensembl <- useMart("ensembl", dataset = "mmusculus_gene_ensembl")
+gene_ids <- rownames(DEGs)
+gene_map <- getBM(
+  attributes = c("ensembl_gene_id", "mgi_symbol"),
+  filters = "ensembl_gene_id",
+  values = gene_ids,
+  mart = ensembl
+)
+
+DEGs$ensembl_gene_id <- rownames(DEGs)
+df_merged <- merge(gene_map, DEGs, by = "ensembl_gene_id")
+
+FilteredGeneID <- unique(df_merged$mgi_symbol)
+        index <- match(FilteredGeneID, annotation_gs$gene_name)
+        ensemblUni <- annotation_gs$ensembl_id[index]
+        ensemblUni <- na.omit(ensemblUni)
+
+go.results <- runGO.all(results = df_merged, background_ids = ensemblUni, 
+            gene_id_col = "ensembl", gene_id_type = "ensembl", 
+            sample_col = "cluster", p_col = "padj", p_threshold = 0.05, 
+            species = "mm")
+        
+        go.results <- filterGenesets(go.results)
+        go.results.top <- go.results %>% group_by(cluster) %>% 
+            top_n(n = 5, -p.val)
+        sampleEnrichmentDotplot(go.results, selection_col = "description", 
+            selected_genesets = c("antigen processing and presentation of peptide antigen", "negative regulation of endopeptidase activity", "regulation of cell killing", "signaling receptor inhibitor activity", "negative regulation of immune response", "Notch signaling pathway", "bone remodelling", "regulation of Wnt signaling pathway", "tissue remodelling", "mesenchyme development", "regulation of canonical Wnt signaling pathway", "tissue migration"), 
+            sample_id_col = "cluster", fill_var = "odds.ratio", 
+            maxl = 50, title = "GO Term Enrichment", rotate_sample_labels = TRUE) + Font(x.text = 12, y.text = 12) + ylab(NULL) +xlab(NULL)
+        
+        
+
+result <- process_deseq_PCA(counts = all_counts, 
+                             meta_data = meta_data, 
+                             relevel_condition = order, 
+                             min_gene_count = 200)
+
+dds <- result$dds
+pca_plot <- result$pca_plot
+pca_plot
+
+```
+
+```{r}
+
+
+library(gsfisher)
+annotation_gs <- fetchAnnotation(species="mm", ensembl_version=NULL, ensembl_host=NULL)
+
+
+
+custom_colors <- c("ctrl" = "red", "CAR" = "blue")
+
+#define order of how you want to plot the heatmap
+custom_order <- c("ctrl", "CAR")
+
+
+run_deseq_contrast_heatmap(dds = dds, 
+                           meta_data = meta_data, 
+                           targetvar = "condition", 
+                           p_value_threshold = 0.001, 
+                           log2fc_threshold = 0.25, 
+                           condition_colors = custom_colors,
+                           condition_order = custom_order,
+                           go_analysis = F, 
+                           organism = "mm", 
+                           annotation_gs = annotation_gs)
+
+
+
+results_all_f <- results_all %>% filter(padj < 0.05)
+
+
+index <- match(results_all_f$gene, annotation_gs$ensembl_id)
+results_all_f$gene_name <- annotation_gs$gene_name[index]
+
+write.csv(results_all_f, "/rds/projects/c/croftap-croftapcarcia/RNA_ATAC_JAN2025/RNAseq/analysis/DEGs.csv")
+
+```
+
+```{r}
+
+condition_colors <- c("ctrl" = "red", "CAR" = "blue")
+
+#define order of how you want to plot the heatmap
+condition_order <- c("ctrl", "CAR")
+
+targetvar = "condition"
+
+p_value_threshold = 0.05
+
+log2fc_threshold = 0.25
+
+conds <- data.frame(t(combn(unique(as.character(meta_data[[targetvar]])), 
+        2)))
+    results_df <- apply(conds, 1, function(cp) {
+        print(cp)
+        results_df <- data.frame(DESeq2::results(dds, contrast = c(targetvar, 
+            cp[2], cp[1])))
+        results_df[["gene"]] <- rownames(results_df)
+        results_df[["comparison"]] <- paste0(cp[2], "_vs_", cp[1])
+        results_df
+    })
+    results_all <- Reduce(rbind, results_df)
+    DEGs_f <- results_all %>% filter(padj < p_value_threshold, 
+        abs(log2FoldChange) > log2fc_threshold) %>% mutate(score = log2FoldChange * 
+        (-log10(pvalue))) %>% arrange(desc(abs(score)))
+    assign("DEGs_f", DEGs_f, envir = .GlobalEnv)
+    DEGs_f$cluster <- "NO"
+    DEGs_f$cluster[DEGs_f$log2FoldChange > 0.001] <- "UP"
+    DEGs_f$cluster[DEGs_f$log2FoldChange < -0.001] <- "DOWN"
+    go.results <- NULL
+    go.results.top <- NULL
+    assign("results_all", results_all, envir = .GlobalEnv)
+    
+    
+    vsd <- vst(dds, blind = TRUE)
+    gene_filter <- unique(DEGs_f$gene)
+    vsd_mat <- assay(vsd)[rownames(vsd) %in% gene_filter, ]
+    scale_sub_vsd <- t(scale(t(vsd_mat)))
+    if (is.null(condition_colors)) {
+        condition_colors <- RColorBrewer::brewer.pal(n = length(unique(meta_data[[targetvar]])), 
+            name = "Set1")
+        names(condition_colors) <- unique(meta_data[[targetvar]])
+    }
+    if (!is.null(condition_order)) {
+        meta_data[[targetvar]] <- factor(meta_data[[targetvar]], 
+            levels = condition_order)
+        ordered_indices <- order(meta_data[[targetvar]])
+        scale_sub_vsd <- scale_sub_vsd[, ordered_indices]
+        meta_data <- meta_data[ordered_indices, ]
+    }
+    condition_ann <- meta_data[[targetvar]]
+    top_annotation <- HeatmapAnnotation(condition = condition_ann, 
+        col = list(condition = condition_colors))
+    assign("scale_sub_vsd", scale_sub_vsd, envir = .GlobalEnv)
+    assign("top_annotation", top_annotation, envir = .GlobalEnv)
+    print(Heatmap(scale_sub_vsd, top_annotation = top_annotation, 
+        col = colorRamp2(c(-1.5, 0, 1.5), c("blue", "white", 
+            "red")), row_names_gp = gpar(fontsize = 4), cluster_columns = FALSE, 
+        cluster_rows = TRUE, show_row_names = FALSE, show_column_names = FALSE, 
+        border = TRUE))
+    
+    
+results_all_f <- results_all %>% filter(padj < 0.05)
+
+
+index <- match(results_all_f$gene, annotation_gs$ensembl_id)
+results_all_f$gene_name <- annotation_gs$gene_name[index]
+    
+    
+```
+
+```{r}
+
+
+scale_sub_vsd <- scale_sub_vsd %>% as.data.frame()
+
+
+index <- match(rownames(scale_sub_vsd), annotation_gs$ensembl_id)
+rownames(scale_sub_vsd) <- annotation_gs$gene_name[index]
+
+
+scale_sub_vsd <- as.matrix(scale_sub_vsd)
+
+
+
+annotation_col <- data.frame(
+  Group = c("ctrl", "ctrl", "ctrl", "CAR", "CAR", "CAR") # Example groupings
+)
+rownames(annotation_col) <- colnames(data) # Match to column names of the data
+
+# Colors for annotations
+annotation_colors <- list(
+  Group = c(ctrl = "yellow", CAR = "green")
+)
+
+
+pheatmap(scale_sub_vsd[c("Cxcl11", "Clec12a", "Cldn13",  "Acta1", "C7", "Cd79a", "Prg4", "F13a1", "Col11a1", "Col8a2", "Col23a1", "Krt12"),], color=colorRampPalette(c("navy", "white", "red"))(15), border_color = "black")
+
+
+pheatmap(scale_sub_vsd[c("Col11a1", "Col8a2", "Col23a1", "C1qtnf3", "Mmp13", "Lrrc4c", "Fbn2", "Thbs4", "Tnc", "Spon1", "Il1rl1", "Tnfsf11"),], color=colorRampPalette(c("navy", "white", "red"))(15), border_color = "black", cluster_cols = F)
+
+
+Heatmap(scale_sub_vsd,
+        name = "Expression",
+        cluster_rows = T,
+        cluster_columns = F,
+        row_title_rot = 0,
+        row_title_gp = gpar(fontsize = 10, fontface = "bold"),
+        row_names_gp = gpar(fontsize = 9),
+        column_names_gp = gpar(fontsize = 10),
+        show_row_dend = T,
+        show_column_dend = T,
+        heatmap_legend_param = list(title = "Expression\nValue"), show_row_names = F, border = T)
+
+
+```
+
+```{r}
+
+######### Figure 3c
+
+
+library(EnhancedVolcano)
+
+genes=c("Col11a1", "Col8a2", "Col23a1", "C1qtnf3", "Mmp13", "Lrrc4c", "Fbn2", "Thbs4", "Tnc", "Spon1", "Il1rl1", "Tnfsf11")
+
+
+index <- match(rownames(results_all), annotation_gs$ensembl_id)
+results_all$gene_name <- annotation_gs$gene_name[index]
+
+keyvals <- ifelse(
+  results_all$log2FoldChange < -0.5 & results_all$pvalue <0.015, 'grey',
+  ifelse(results_all$log2FoldChange > 0.5 & results_all$pvalue <0.015, 'firebrick',
+         'skyblue2'))
+
+keyvals[is.na(keyvals)] <- 'skyblue2'
+names(keyvals)[keyvals == 'firebrick'] <- 'CAR'
+names(keyvals)[keyvals == 'skyblue2'] <- 'NA'
+names(keyvals)[keyvals == 'grey'] <- 'X'
+
+EnhancedVolcano(results_all,
+    lab = results_all$gene_name,
+    x = 'log2FoldChange',
+    y = 'padj',
+    title = 'title',
+    subtitle = "GEX, red=p_adj<0.05 & FC > 0.25",
+    pCutoff = 0.05,
+    FCcutoff = 0.25,
+    pointSize = 3.0,
+    labSize = 4,
+    cutoffLineType = 'twodash',
+    cutoffLineWidth = 0,
+    gridlines.major = FALSE,
+    gridlines.minor = FALSE,
+    legendPosition = 'none',
+    legendLabSize = 10,
+    legendIconSize =3.0,
+    legendLabels=c('NS','p<0.05 & FC > 0.25'),
+    colCustom = keyvals,
+    drawConnectors = TRUE,
+    widthConnectors = 0.3,
+    xlab = bquote(~Log[2]~ 'fold change'),
+    boxedLabels = F,
+    borderWidth = 0.5, max.overlaps = 20,
+    selectLab = c("Tnn", "Tnc", "Mmp13", "Tnfsf11", "C1qtnf3", "Fbn2", "Il1rn", "Thbs4", "Adgrb3", "Cfi", "Cxcl5", "Prokr2", "Kcnj15", "Htr2a", "Megf10", "Prg4", "Pcolce2", "Mt1", "Mt2", "Itga6")
+    )+xlim(-12,10)+ylim(0,12)
+```
+
+```{r}
+results_down_reg <- results_all %>% filter(padj < 0.05) %>% filter(log2FoldChange < -0.001)
+
+results_down_reg_RNAseq <- results_down_reg
+
+
+results_up_reg <- results_all %>% filter(padj < 0.05) %>% filter(log2FoldChange > 0.001)
+
+results_up_reg_RNAseq <- results_up_reg
+
+```
+
+```{r}
+
+results_all_f$comparison %>% unique()
+
+index <- match(results_all$gene, annotation_gs$ensembl_id)
+results_all$gene_name <- annotation_gs$gene_name[index]
+
+results_all_f$cluster <- "NO"
+    results_all_f$cluster[results_all_f$log2FoldChange > 0.05] <- "UP"
+    results_all_f$cluster[results_all_f$log2FoldChange < -0.05] <- "DOWN"
+
+go.results <- runGO.all(results=results_all_f,
+                  background_ids = rownames(results_all), gene_id_col="gene", gene_id_type="ensembl", sample_col="cluster", p_col="padj", p_threshold=0.05,
+                  species = "mm")
+go.results <- filterGenesets(go.results)
+go.results.top <- go.results %>% group_by(cluster) %>% top_n(n=5, -p.val)
+sampleEnrichmentDotplot(go.results.top, selection_col = "description", selected_genesets = unique(go.results.top$description), sample_id_col = "cluster", fill_var = "odds.ratio", maxl=50, title="Go term",rotate_sample_labels = T)
+
+
+sampleEnrichmentDotplot(go.results, selection_col = "description", selected_genesets = c("regulation of inflammatory response", "extracellular matrix organization", "MHC protein complex binding", "antigen processing and presentation of peptide antigen"), sample_id_col = "cluster", fill_var = "odds.ratio", maxl=50, title="Go term",rotate_sample_labels = T)+ggtitle("CAR treated vs ctrl")
+
+
+
+library(gsfisher)
+annotation_gs <- fetchAnnotation(species="mm", ensembl_version=NULL, ensembl_host=NULL)
+
+
+############ FIgure 3f
+vsd <- vst(dds, blind = T)
+vsd_mat <- assay(vsd)
+norm_expr_mat<- t(scale(t(vsd_mat)))
+
+ensembl_ids <- rownames(norm_expr_mat)
+
+# Match each Ensembl ID to its gene name
+idx <- match(ensembl_ids, annotation_gs$ensembl_id)
+
+# Replace rownames with gene names (keeping original if no match)
+rownames(norm_expr_mat) <- ifelse(
+  is.na(idx),
+  ensembl_ids,  
+  annotation_gs$gene_name[idx]
+)
+
+
+gene_order <- c("Fscn1", "Septin5", "Htr2a", "C1qtnf3",
+                "Tnfrsf9", "Cxcr6", "Fbn2", "Tnn",
+                "Tnc", "Cxcl5", "Saa4")
+
+# Make sure genes exist
+gene_order <- gene_order[gene_order %in% rownames(norm_expr_mat)]
+
+Heatmap(
+  norm_expr_mat[gene_order, c(1,2,3,4,5,6)],
+  name = "Z-score",
+  border = TRUE,
+  show_row_names = TRUE,
+  cluster_rows = FALSE,      # IMPORTANT
+  cluster_columns = FALSE,
+  col = circlize::colorRamp2(c(-2, 0, 2),
+                             c("blue", "white", "red"))
+)
+
+
+Heatmap(norm_expr_mat[c("Htr2a", "Saa4", "Septin5", "Cxcr6", "Fbn2", "Cxcl5", "Tnn", "Fscn1", "Tnfrsf9", "Tnc", "C1qtnf3"),c(1,2,3,4,5,6)], border=T, show_row_names = T, cluster_columns = F,c("blue", "white", "red"))+xlab(NULL)
+
+Heatmap(norm_expr_mat[c("Il1rn", "Il1rl1", "Pcsk5", "Adam12", "Tnfsf11", "Mmp8", "Mmp13", "Col8a2", "Col11a1"),c(1,2,3,4,5,6)], border=T, show_row_names = T, cluster_columns = F,c("blue", "white", "red"))+xlab(NULL)
+
+Heatmap(norm_expr_mat[c("Akap12", "Plau", "Itga6", "F13a1", "Btc"),c(1,2,3,4,5,6)], border=T, show_row_names = T, cluster_columns = F,c("blue", "white", "red"))+xlab(NULL)
+
+Heatmap(norm_expr_mat[c("Enho", "Pcolce2", "Prg4", "Cacng1", "Lepr", "Enpp6", "Tmigd1", "Mt1", "Mt2", "Megf10", "Cd24a"),c(1,2,3,4,5,6)], border=T, show_row_names = T, cluster_columns = F,c("blue", "white", "red"))+xlab(NULL)
+
+Heatmap(norm_expr_mat[c("H2-DMa", "Slfnlnc", "Ifi208", "Cxcl9", "H2-Ab1", "H2-Eb1", "H2-Aa"),c(1,2,3,4,5,6)], border=T, show_row_names = T, cluster_columns = F,c("blue", "white", "red"))+xlab(NULL)
+
+###########qiescent genes#########
+Heatmap(norm_expr_mat[c("Creb5", "Foxo1", "Sox5"),c(1,2,3,4,5,6)], border=T, show_row_names = T, cluster_columns = F,c("blue", "white", "red"))
+
+
+
+
+```
+
+```{r}
+results_all_f <- results_all %>% filter(padj < 0.05)
+
+
+index <- match(results_all_f$gene, annotation_gs$ensembl_id)
+results_all_f$gene_name <- annotation_gs$gene_name[index]
+
+FilteredGeneID <- unique(results_all_f$gene)
+        index <- match(FilteredGeneID, annotation_gs$gene_name)
+        ensemblUni <- annotation_gs$ensembl_id[index]
+        ensemblUni <- na.omit(ensemblUni)
+
+        index <- match(results_all_f$gene, annotation_gs$gene_name)
+        results_all_f$ensembl <- annotation_gs$ensembl_id[index]
+        results_all_f <- na.omit(results_all_f)
+
+        go.results <- runGO.all(results = results_all_f, background_ids = ensemblUni, 
+            gene_id_col = "ensembl", gene_id_type = "ensembl", 
+            sample_col = "cluster", p_col = "padj", p_threshold = 0.05, 
+            species = "mm")
+        
+        go.results <- filterGenesets(go.results)
+        go.results.top <- go.results %>% group_by(cluster) %>% 
+            top_n(n = 5, -p.val)
+        sampleEnrichmentDotplot(go.results, selection_col = "description", 
+            selected_genesets = c("antigen processing and presentation of peptide antigen", "negative regulation of endopeptidase activity", "regulation of cell killing", "signaling receptor inhibitor activity", "negative regulation of immune response", "Notch signaling pathway", "bone remodelling", "regulation of Wnt signaling pathway", "tissue remodelling", "mesenchyme development", "regulation of canonical Wnt signaling pathway", "tissue migration"), 
+            sample_id_col = "cluster", fill_var = "odds.ratio", 
+            maxl = 50, title = "GO Term Enrichment", rotate_sample_labels = TRUE) + Font(x.text = 12, y.text = 12) + ylab(NULL) +xlab(NULL)
+
+```
+
+\`\`\`{r}
+
+#########pathway anlysis - figure 3d&e
+
+####using df_merge genes library(AnnotationDbi) library(org.Mm.eg.db)
+
+df_mergedres \<- subset(df_merged, padj \< 0.05 & abs(log2FoldChange) \> 1) df_mergedX \<- subset(df_mergedres, padj \< 0.05 & cluster == "UP") df_mergedC \<- subset(df_mergedres, padj \< 0.05 & cluster == "DOWN")
+
+library(clusterProfiler)
+
+\`\` egoX \<- enrichGO(gene = df_mergedX\$gene_id, OrgDb = org.Mm.eg.db, keyType = "ENTREZID", ont = "BP", pAdjustMethod = "BH", qvalueCutoff = 0.2, readable = TRUE)
+
+dotplot(egoX, showCategory = c("secretion by tissue", "acute inflammatory response", "humoral immune response", "complement activation", "regulation of complement activation", "complement activation, classical pathway", "learning or memory", "memory", "production of molecular mediator of immune response", "cell aggregation", "acute inflammatory response", "phagocytosis, recognition")) + ggtitle("GO Terms - non-treated")
+
+egoC \<- enrichGO(gene = df_mergedX\$gene_id, OrgDb = org.Mm.eg.db, keyType = "ENTREZID", ont = "BP", pAdjustMethod = "BH", qvalueCutoff = 0.2, readable = TRUE)
+
+dotplot(egoC, showCategory = c("homeostasis of number of cells", "myeloid cell homeostasis", "B cell mediated immunity", "response to type II interferon", "homotypic cell-cell adhesion", "B cell homeostasis", "response to vitamin", "antigen processing and presentation of exogenous antigen")) + ggtitle("GO Terms - non-treated")
