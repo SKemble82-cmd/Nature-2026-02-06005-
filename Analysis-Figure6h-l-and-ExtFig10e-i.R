@@ -43,17 +43,8 @@ library(dichromat)
 library(ggpubr)
 library(Nebulosa)
         
-install_github("velocyto-team/velocyto.R")
 
-BiocManager::install("velocyto.R")
-BiocManager::install(version = "3.18")
-install.packages("velocyto.R")
-remotes::install_github("sansomlab/gsfisher")
-remotes::install_github("velocyto-team/velocyto.R")
-
-
-getwd()
-
+###########non-treated
 p1 <- Read10X(data.dir = "/rds/projects/c/croftap-sgcar/single_cell_feb_2024/count/SGP1/outs/filtered_feature_bc_matrix")
 p1 <- CreateSeuratObject(counts = p1, min.cells=3, min.features=100, project="p1")
 p1 <- RenameCells(p1, add.cell.id = "p1")
@@ -78,7 +69,7 @@ p3$Treatment <- "Control"
 p3$Inflammation <- "Inflamed"
 head(p3)
 
-
+############CAR-T treated
 f1 <- Read10X(data.dir = "/rds/projects/c/croftap-sgcar/count/SGC1/outs/per_sample_outs/SGC1/count/sample_filtered_feature_bc_matrix")
 f1 <- CreateSeuratObject(counts = f1, min.cells=3, min.features=100, project="f1")
 f1 <- RenameCells(f1, add.cell.id = "f1")
@@ -103,6 +94,7 @@ f3$Treatment <- "CAR"
 f3$Inflammation <- "CAR_Inflamed"
 head(f3)
 
+################resting
 h1 <- Read10X(data.dir = "/rds/projects/c/croftap-sgcar/count/SGH1/outs/per_sample_outs/SGH1/count/sample_filtered_feature_bc_matrix")
 h1 <- CreateSeuratObject(counts = h1, min.cells=3, min.features=100, project="h1")
 h1 <- RenameCells(h1, add.cell.id = "h1")
@@ -370,7 +362,7 @@ clustree(fibs.1, assay = "integrated")
 fibs.1 <- RunUMAP(fibs.1, reduction = "pca", dims = 1:30)
 fibs.1 <- FindClusters(fibs.1, graph.name = "integrated_snn", resolution = 0.3)
 
-###fibroblast UMAP and cluster annotations
+###Figure 6h
 DimPlot(fibs.1, label = F, pt.size = 0.01, repel =T, label.box = F, raster = F) +NoAxes()+scale_color_manual(values = c("burlywood3", "gray20", "violetred4","olivedrab", "darkslategray3", "mistyrose2"))
 
 fibs.1$Treatment <- factor(fibs.1$Treatment,levels=c("Naive", "Control", "CAR"))
@@ -408,7 +400,7 @@ fib.genes<-c("Bmper", "Cdh11", "Rspo3", "Pappa", "Mgp", "Bgn", "Cxcl10", "Cxcl9"
 dotplot <- DotPlot(fibs.1, features = fib.genes, dot.scale = 5)+ylab(NULL) +xlab(NULL)+ scale_color_gradientn(colours = magma(20))+ FontSize(x.text = 14, y.text = 14) 
 dotplot
 
-#####barplot for fibroblast cluster proportion
+#####Figure 6h
 Idents(fib.pt)<-"clusters"
 
 pt <- table(fibs.1$clusters, fibs.1$Treatment)
@@ -424,13 +416,15 @@ ggplot(pt, aes(x = Var2, y = Freq, fill = Var1)) +
   theme(legend.title = element_blank())+RotatedAxis() +
   scale_fill_manual(values = c("burlywood3", "gray20", "violetred4","olivedrab", "darkslategray3", "mistyrose2"))+NoLegend()
 
-######scproportion test for signifiant chnages in fibrob;last proportions
+
 test <- sc_utils(fibs.1)
 
+######Extended data figure 10f
 ###resting v non-treated
 prop.test <- permutation_test(test, cluster_identity = "clusters", sample_1="Naive", sample_2="Control", sample_identity="Treatment", n_permutations=10000)
 permutation_plot(prop.test, FDR_threshold = 0.05, log2FD_threshold = 0.5, order_clusters = T)+NoLegend()+xlab(NULL)
 
+######Figure 6i
 ###car v non-treated
 prop.test <- permutation_test(test, cluster_identity = "clusters", sample_1="CAR", sample_2="Control", sample_identity="Treatment", n_permutations=10000)
 permutation_plot(prop.test, FDR_threshold = 0.05, log2FD_threshold = 0.5, order_clusters = T)+NoLegend()+xlab(NULL)
@@ -439,134 +433,9 @@ permutation_plot(prop.test, FDR_threshold = 0.05, log2FD_threshold = 0.5, order_
 
 #fibs1<-subset(fibs.H, idents = "Fib")
 
-####cluster phylogeny
-fibs.1 <- BuildClusterTree(fibs.1)
-PlotClusterTree(fibs.1)
-plot(fibs.1@tools$BuildClusterTree)
-
-immfib1 <- c("Tnfsf13b", "Pdpn", "Ccl19", "Icam1", "Vcam1", "Cxcl9", "Cxcl10", "Cxcl13", "Cdkn1a", "F2r",
-            "Gbp7", "Gbp4", "Gbp2", "Irf8")
 
 
-Idents(fibs.1)<-"Treatment"
-fibs.1$Treatment <- factor(fibs.1$Treatment, levels=c("Naive", "Control", "CAR"))
-
-
-#select top8 DEGs
-FindAllMarkers_cells.1 <- FindAllMarkers(fibs.1, only.pos = T, min.pct = 0.25, logfc.threshold = 0.5)
-FindAllMarkers_cells.1 %>%
-  group_by(cluster) %>%
-  top_n(n = 8, wt = avg_log2FC) -> top8
-
-
-
-#plot dotplot
-dotplot <- DotPlot(fibs.1, features = immfib1, dot.scale = 5)+ylab(NULL) +xlab(NULL)+ scale_color_gradientn(colours = magma(20))+ FontSize(x.text = 14, y.text = 14) 
-dotplot
-
-
-
-head(dotplot)
-cyto.genes <- cyto.genes[-c(8), ]
-tail(top8)
-#I the extracted scaled averga expresison form the dotplot
-fbdotplot.data <- dotplot[["data"]]
-
-#remove non essesntial info
-fbdotplot.data_edit = subset(fbdotplot.data, select = -c(1:3) )
-
-#split into each cluster and rename column
-
-fbdotplot.data_edit_Naive = subset(fbdotplot.data_edit, id == "Naive")
-fbdotplot.data_edit_Naive = subset(fbdotplot.data_edit_Naive, select = -c(1) )
-names(fbdotplot.data_edit_Naive)[names(fbdotplot.data_edit_Naive) == 'avg.exp.scaled'] <- 'Naive'
-
-fbdotplot.data_edit_Control = subset(fbdotplot.data_edit, id == "Control")
-fbdotplot.data_edit_Control = subset(fbdotplot.data_edit_Control, select = -c(1) )
-names(fbdotplot.data_edit_Control)[names(fbdotplot.data_edit_Control) == 'avg.exp.scaled'] <- 'Control'
-
-fbdotplot.data_edit_CAR = subset(fbdotplot.data_edit, id == "CAR")
-fbdotplot.data_edit_CAR = subset(fbdotplot.data_edit_CAR, select = -c(1) )
-names(fbdotplot.data_edit_CAR)[names(fbdotplot.data_edit_CAR) == 'avg.exp.scaled'] <- 'Deleted'
-
-fbdotplot.data_edit_Naive$Control <- fbdotplot.data_edit_Control$Control
-fbdotplot.data_edit_Naive$Deleted <- fbdotplot.data_edit_CAR$Deleted
-
-
-
-
-fbdotplot.data_edit_Bmper = subset(fbdotplot.data_edit, id == "Bmper")
-fbdotplot.data_edit_Bmper = subset(fbdotplot.data_edit_Bmper, select = -c(1) )
-names(fbdotplot.data_edit_Bmper)[names(fbdotplot.data_edit_Bmper) == 'avg.exp.scaled'] <- 'Bmper'
-
-fbdotplot.data_edit_Rspo3 = subset(fbdotplot.data_edit, id == "Rspo3")
-fbdotplot.data_edit_Rspo3 = subset(fbdotplot.data_edit_Rspo3, select = -c(1) )
-names(fbdotplot.data_edit_Rspo3)[names(fbdotplot.data_edit_Rspo3) == 'avg.exp.scaled'] <- 'Rspo3'
-
-fbdotplot.data_edit_Mgp = subset(fbdotplot.data_edit, id == "Mgp")
-fbdotplot.data_edit_Mgp = subset(fbdotplot.data_edit_Mgp, select = -c(1) )
-names(fbdotplot.data_edit_Mgp)[names(fbdotplot.data_edit_Mgp) == 'avg.exp.scaled'] <- 'Mgp'
-
-fbdotplot.data_edit_Cxcl10 = subset(fbdotplot.data_edit, id == "Cxcl10")
-fbdotplot.data_edit_Cxcl10 = subset(fbdotplot.data_edit_Cxcl10, select = -c(1) )
-names(fbdotplot.data_edit_Cxcl10)[names(fbdotplot.data_edit_Cxcl10) == 'avg.exp.scaled'] <- 'Cxcl10'
-
-fbdotplot.data_edit_Gas6 = subset(fbdotplot.data_edit, id == "Gas6")
-fbdotplot.data_edit_Gas6 = subset(fbdotplot.data_edit_Gas6, select = -c(1) )
-names(fbdotplot.data_edit_Gas6)[names(fbdotplot.data_edit_Gas6) == 'avg.exp.scaled'] <- 'Gas6'
-
-fbdotplot.data_edit_Pi16 = subset(fbdotplot.data_edit, id == "Pi16")
-fbdotplot.data_edit_Pi16 = subset(fbdotplot.data_edit_Pi16, select = -c(1) )
-names(fbdotplot.data_edit_Pi16)[names(fbdotplot.data_edit_Pi16) == 'avg.exp.scaled'] <- 'Pi16'
-
-
-
-#add all together again!
-fbdotplot.data_edit_Bmper$Rspo3 <- fbdotplot.data_edit_Rspo3$Rspo3
-fbdotplot.data_edit_Bmper$Mgp <- fbdotplot.data_edit_Mgp$Mgp
-fbdotplot.data_edit_Bmper$Cxcl10 <- fbdotplot.data_edit_Cxcl10$Cxcl10
-fbdotplot.data_edit_Bmper$Gas6 <- fbdotplot.data_edit_Gas6$Gas6
-fbdotplot.data_edit_Bmper$Pi16 <- fbdotplot.data_edit_Pi16$Pi16
-
-
-mat_fb <- fbdotplot.data_edit_Naive
-mat_fb <- as.matrix(mat_fb)
-
-# did not need to do this!
-#mat_macs <- t(mat_macs)
-
-#create bar at top
-cat_macs=data.frame("Treatment"=c("Naive", "Control", "Deleted"))
-rownames(cat_macs)=colnames(mat_fb)
-
-anncols <- list("Treatment" = c(Naive="goldenrod", Control="grey",Deleted="firebrick"))
-
-pheatmap(mat_fb, main="Immunofibroblast", color = brewer.pal(4, "Greens"),  cluster_rows=F , cluster_cols = F, annotation_col=cat_macs, cellwidth = 20, show_colnames = F, annotation_colors = anncols) 
-
-
-
-
-
-
-#c("burlywood3", "gray20", "violetred4","olivedrab", "darkslategray3", "mistyrose2")
-library("scales")
-#show_col(pal_d3("category10")(7))
-cols<-list(cluster=c(Bmper="burlywood3", Rspo3="gray20", Mgp="violetred4", Cxcl10="olivedrab", Gas6="darkslategray3", Pi16="mistyrose2")) 
-pheatmap(mat_fb, main="Clusters", cluster_rows=F , cluster_cols = F, annotation_col=cat_macs, cellwidth = 20, show_colnames = F, annotation_colors = cols)
-
-
-
-
-library(scProportionTest)
-
-test <- sc_utils(fibs.1)
-prop.testNvX <- permutation_test(test, cluster_identity = "clusters", sample_1="Naive", sample_2="Control", sample_identity="Treatment", n_permutations=10000)
-permutation_plot(prop.testXvC, FDR_threshold = 0.05, log2FD_threshold = 0.5, order_clusters = T)+NoLegend()+xlab(NULL)
-
-
-saveRDS(Fibs.H, file = "sgFibs.rds")
-Fibs.H<-readRDS(file = "sgFibs.rds")
-
+##############Extended Data Figure 10g
 library(gsfisher)
 seurat_obj <- fibs.1
 #Edit to suitable output folder
@@ -698,10 +567,13 @@ all_results_top <- All_enrichments %>% group_by(cluster) %>% top_n(n=5, -p.val)
 sampleEnrichmentDotplot(All_enrichments, selection_col = "description", selected_genesets = c("negative regulation of cell migration", "negative regulation of cell motility", "fat cell differentiation", "chemokine receptor binding", "chemokine activity", "cytokine activity", "extracellular matrix binding", "extracellular matrix organization", "extracellular matrix structural constituent", "cell chemotaxis", "cell adhesion molecule binding", "regulation of chemotaxis", "BMP signaling pathway", "response to BMP", "regulation of BMP signaling pathway", "regulation of canonical Wnt signaling pathway", "regulation of Wnt signaling", "tissue migration"), sample_id_col = "cluster", fill_var = "odds.ratio", maxl=50, rotate_sample_labels = TRUE,fill_colors = c("yellow3", "red", "black")) + FontSize(x.text = 12, y.text = 12) + ylab(NULL) +xlab(NULL)
 sampleEnrichmentHeatmap(All_enrichments, sample_id_col = "cluster", max_rows = 30, min_odds_ratio = 1.5)
 
+
+
+
+                        
 ########pi16 and immunofibroblast gene modules plotted by density
-pi16.genes <- c("Anxa3", "Ly6c1",	"Fn1",	"Ly6a",	"Dpp4",	"Cd248", 	"Igfbp6",	"Timp2",	"Sema3c",	"Anxa1",	"Pi16", "Emilin2",	"Efhd1",	"Metrnl",	"Pcolce2",	"Efemp1",	"Smpd3",	"Ugdh",	"Cadm3",
-                "Sfrp4",	"bn1",	"Ackr3",	"Lrrn4cl",	"Pla1a",	"Fndc1",	"Il1r2",	"Mustn1",	"Plac8",	"Tmem100",	"Basp1", "Marcks",	"Scara3",	"Igfbp5",	"Scara5",	"Akr1c18",	"Clec3b",	"Adgrd1",
-                "Fstl1",	"Osr",	"Axl",	"Procr",	"Opcml",	"Tgfbr2",	"Il18",	"Prrx1",	"Creb5",	"Serpinb6a",	"Mfap5",	"Car8",	"Cmah",	"Has1",	"Lurap1l",	"Prss23",	"Gfpt2",	"Tmem158",	"Dpt",	"Errfi1",	"Col14a1",	"S100a13", "Gas7")
+
+############Figure 6j                        
 Imm.genes <- c("Icam1", "Vcam1", "Pdgfra", "Pdgfrb", "Cxcl13", "Ccl19", "Cxcl10", "Cxcl9", "Cd82", "Tnfsf13b")
 
 fibs.1 <- AddModuleScore(
@@ -713,6 +585,12 @@ fibs.1 <- AddModuleScore(
 
 plot_density(fibs.1, features = c("Imm1"), combine = F, method = "wkde", size = 1, adjust = 1)+NoAxes()#+ scale_color_gradientn(colours = magma(20))#+facet_grid(.~fibs.1$Treatment)
 
+
+############Figure 6k
+pi16.genes <- c("Anxa3", "Ly6c1",	"Fn1",	"Ly6a",	"Dpp4",	"Cd248", 	"Igfbp6",	"Timp2",	"Sema3c",	"Anxa1",	"Pi16", "Emilin2",	"Efhd1",	"Metrnl",	"Pcolce2",	"Efemp1",	"Smpd3",	"Ugdh",	"Cadm3",
+                "Sfrp4",	"bn1",	"Ackr3",	"Lrrn4cl",	"Pla1a",	"Fndc1",	"Il1r2",	"Mustn1",	"Plac8",	"Tmem100",	"Basp1", "Marcks",	"Scara3",	"Igfbp5",	"Scara5",	"Akr1c18",	"Clec3b",	"Adgrd1",
+                "Fstl1",	"Osr",	"Axl",	"Procr",	"Opcml",	"Tgfbr2",	"Il18",	"Prrx1",	"Creb5",	"Serpinb6a",	"Mfap5",	"Car8",	"Cmah",	"Has1",	"Lurap1l",	"Prss23",	"Gfpt2",	"Tmem158",	"Dpt",	"Errfi1",	"Col14a1",	"S100a13", "Gas7")
+                        
 fibs.1 <- AddModuleScore(
   object = fibs.1,
   features = list(pi16.genes),
@@ -722,7 +600,7 @@ fibs.1 <- AddModuleScore(
 plot_density(fibs.1, features = c("univ1"), combine = F, method = "wkde", size = 1, adjust = 1)+NoAxes()#+ scale_color_gradientn(colours = magma(20))#+facet_grid(.~fibs.1$Treatment)
 plot_density(fibs.1, features = c("Pi16"), combine = F, method = "wkde", size = 1, adjust = 1)+NoAxes()+ scale_color_gradientn(colours = viridis(20))#+facet_grid(.~resting.fb$InflammationStatus)
 
-########immunofibroblast genes - violinplots
+########Extended data figure 10h
 VlnPlot(fibs.1, features = c("Icam1"), pt.size = 0, cols = c("burlywood3", "violetred4", "gray20", "olivedrab", "darkslategray3", "mistyrose2"))+xlab(NULL)+NoLegend()
 VlnPlot(fibs.1, features = c("Vcam1"), pt.size = 0, cols = c("burlywood3", "violetred4", "gray20", "olivedrab", "darkslategray3", "mistyrose2"))+xlab(NULL)+NoLegend()
 VlnPlot(fibs.1, features = c("Cxcl13"), pt.size = 0, cols = c("burlywood3", "violetred4", "gray20", "olivedrab", "darkslategray3", "mistyrose2"))+xlab(NULL)+NoLegend()
@@ -731,9 +609,7 @@ VlnPlot(fibs.1, features = c("Cxcl10"), pt.size = 0, cols = c("burlywood3", "vio
 VlnPlot(fibs.1, features = c("Tnfsf13b"), pt.size = 0, cols = c("burlywood3", "violetred4", "gray20", "olivedrab", "darkslategray3", "mistyrose2"))+xlab(NULL)+NoLegend()
 
 
-plot_density(fibs.1, features = c("Fap"), combine = F, method = "wkde", size = 1, adjust = 1)+NoAxes()+ scale_color_gradientn(colours = magma(20))#+facet_grid(.~resting.fb$InflammationStatus)
-
-
+############Extended data figure 10i
 ###pseudotime
 Idents(fibs.1)<-"Treatment"
 Naive.fibs<-subset(fibs.1, idents="Naive")
@@ -782,8 +658,9 @@ naive.monocle2_cds_plotclus <- plot_cell_trajectory(naive.monocle2_cds, color_by
 naive.monocle2_cds_plotclus + NoAxes()+scale_color_manual(values = c("burlywood3", "gray20", "violetred4","olivedrab", "darkslategray3", "mistyrose2"))+NoLegend()  ##this shows cluster ID
 naive.monocle2_cds_plotPseu  + NoAxes() + NoLegend() ##this show pseudotime
 
+                        
 imm.genes<-c("Cxcl10", "Cxcl9", "Cxcl13", "Icam1", "Tnfsf13b")
-naive.monocle2_cds <- naive.monocle2_cds["creb.genes,"]
+naive.monocle2_cds <- naive.monocle2_cds["imm.genes,"]
 plot_genes_in_pseudotime(naive.monocle2_cds, color_by = "clusters")+scale_color_manual(values = c("burlywood3", "gray20", "violetred4","olivedrab", "darkslategray3", "mistyrose2"))
 
 
@@ -886,7 +763,8 @@ ggplot(expr, aes(x = Treatment, y = expression, fill = Treatment)) +
                                                                                                     paired = F,
                                                                                                     ref.group = "Control") +NoLegend()
 
-########fap high and low fibroblast analysis
+########Extended data figure 10d
+                        
 Idents(control.fibs)<-"clusters"
 fap.fib<-subset(x = control.fibs, subset = Fap > 1)
 fap.lo<-subset(x = control.fibs, subset = Fap < 1)
